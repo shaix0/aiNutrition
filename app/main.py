@@ -7,8 +7,8 @@ import firebase_admin
 from firebase_admin import auth, credentials
 from firebase_admin import firestore_async
 
-from app.routes.admin import router as admin_router
-from app.routes.settings import router as settings_router
+from app.admin import router as admin_router
+#from app.routes.settings import router as settings_router
 
 #API_BASE_URL = os.getenv("API_BASE_URL")
 
