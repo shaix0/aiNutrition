@@ -10,6 +10,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/': (context) => const NutritionHomePage(), // 主畫面
   '/auth': (context) => const AuthPage(), // 登入/註冊頁
   '/settings': (context) => const SettingsPage(), // 設定頁
-  '/admin': (context) => const AdminPage(),       // 管理頁
+  '/admin': (context) => const AdminPage(), // 管理頁
   '/analysis': (context) => const DashboardPage(), // 分析頁
 };
