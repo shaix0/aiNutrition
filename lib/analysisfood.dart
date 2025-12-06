@@ -4,14 +4,14 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'package:flutter/foundation.dart'; // For kIsWeb, compute
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 引入環境變數套件
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 
 // -----------------------------------------------------------------------------
-// 資料模型
+// 資料模型 (Models)
 // -----------------------------------------------------------------------------
 
 class Ingredient {
@@ -85,7 +85,7 @@ class FoodAnalysisResult {
 }
 
 // -----------------------------------------------------------------------------
-// Dashboard Page
+// Dashboard Page (分析頁面主體)
 // -----------------------------------------------------------------------------
 
 class DashboardPage extends StatefulWidget {
@@ -107,11 +107,15 @@ class _DashboardPageState extends State<DashboardPage> {
   late final GenerativeModel _model;
   bool _isApiKeyLoaded = false;
 
-  // 🌟 1. 定義一個 GlobalKey 來定位「結果區塊」的位置
+  // 定位 Key 與 滾動控制器
   final GlobalKey _resultKey = GlobalKey();
-
-  // 雖然用 GlobalKey 滑動不需要 ScrollController，但為了讓 SingleChildScrollView 正常運作，保留它
   final ScrollController _scrollController = ScrollController();
+
+  // 🟢 優化 1：新增這個函式，在背景執行緒將圖片轉為 Base64
+  // 這能避免主畫面卡死導致 System UI 無回應
+  static Future<String> _encodeImageInBackground(Uint8List bytes) async {
+    return compute((Uint8List b) => base64Encode(b), bytes);
+  }
 
   @override
   void initState() {
@@ -127,15 +131,14 @@ class _DashboardPageState extends State<DashboardPage> {
     super.dispose();
   }
 
-  // 1. 初始化 Firebase Auth
+  // 1. 初始化 Auth 監聽
   Future<void> _initializeAuth() async {
     final auth = FirebaseAuth.instance;
     if (auth.currentUser == null) {
       try {
-        if (kDebugMode) print("偵測到未登入，嘗試匿名登入...");
         await auth.signInAnonymously();
       } catch (e) {
-        if (kDebugMode) print("匿名登入失敗: $e");
+        print("Dashboard: 補救登入失敗: $e");
       }
     }
 
@@ -152,7 +155,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _initializeAI() {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      if (kDebugMode) print("錯誤：未設定 GEMINI_API_KEY");
+      if (kDebugMode) print("錯誤：DashboardPage 讀取不到 GEMINI_API_KEY");
       setState(() => _isApiKeyLoaded = false);
       return;
     }
@@ -160,7 +163,7 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() => _isApiKeyLoaded = true);
   }
 
-  // 3. 選擇圖片
+  // 3. 選擇圖片邏輯
   Future<void> _showImagePickerOptions() async {
     if (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.android) {
@@ -171,6 +174,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _showMobileImagePicker() async {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     final result = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -198,17 +203,17 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.teal),
+                leading: Icon(Icons.camera_alt, color: primaryColor),
                 title: const Text('拍照'),
                 onTap: () => Navigator.pop(context, 1),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.teal),
+                leading: Icon(Icons.photo_library, color: primaryColor),
                 title: const Text('上傳照片'),
                 onTap: () => Navigator.pop(context, 2),
               ),
               ListTile(
-                leading: const Icon(Icons.folder, color: Colors.teal),
+                leading: Icon(Icons.folder, color: primaryColor),
                 title: const Text('選擇檔案'),
                 onTap: () => Navigator.pop(context, 3),
               ),
@@ -220,9 +225,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, 0),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
                       foregroundColor: Colors.grey,
                       side: const BorderSide(color: Colors.grey),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: const Text('取消'),
                   ),
@@ -253,13 +258,13 @@ class _DashboardPageState extends State<DashboardPage> {
       final XFile? image = await picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.rear,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
+        // 🟢 優化 2：物理壓縮 (拍照時就縮小，大幅減少記憶體佔用)
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
       );
       if (image != null) await _showImagePreview(image);
     } catch (e) {
-      print("拍照錯誤: $e");
       _showErrorDialog("無法開啟相機，請檢查權限設定");
     }
   }
@@ -269,13 +274,13 @@ class _DashboardPageState extends State<DashboardPage> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
+        // 🟢 優化 2：物理壓縮 (選圖時就縮小)
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
       );
       if (image != null) _handleSelectedImage(image);
     } catch (e) {
-      print("選擇照片錯誤: $e");
       _showErrorDialog("無法存取相簿");
     }
   }
@@ -285,13 +290,13 @@ class _DashboardPageState extends State<DashboardPage> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
+        // 🟢 優化 2：物理壓縮 (選檔時就縮小)
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
       );
       if (image != null) _handleSelectedImage(image);
     } catch (e) {
-      print("選擇檔案錯誤: $e");
       _showErrorDialog("無法存取檔案");
     }
   }
@@ -328,8 +333,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
                       foregroundColor: Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: const Text('重拍'),
                   ),
@@ -339,9 +344,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      minimumSize: const Size(double.infinity, 50),
                     ),
                     child: const Text('使用此照片'),
                   ),
@@ -370,7 +373,6 @@ class _DashboardPageState extends State<DashboardPage> {
       });
       _showSnackBar('圖片選擇成功！', isSuccess: true);
     } catch (e) {
-      print("處理圖片錯誤: $e");
       _showErrorDialog("處理圖片時發生錯誤");
     }
   }
@@ -391,7 +393,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // 4. 重置/取消
   void _resetAll() {
     setState(() {
       _selectedImage = null;
@@ -402,7 +403,9 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  // ---------------------------------------------------------------------------
   // 5. 開始分析
+  // ---------------------------------------------------------------------------
   Future<void> _analyzeImage() async {
     if (_imageBytes == null) return;
     if (!_isApiKeyLoaded) {
@@ -415,36 +418,62 @@ class _DashboardPageState extends State<DashboardPage> {
     });
 
     try {
+      final userInput = _promptController.text.trim();
+
       final prompt =
           """
-      你是一個專業的營養師。請分析這張食物圖片。
-      使用者提示詞: ${_promptController.text}
+      你是一個專業的營養師。請依據以下邏輯分析這張圖片與使用者的描述。
       
-      請辨識圖片中的食物，並詳細列出所有可見食材的營養估算。
+      使用者描述: "$userInput"
       
-      【重要】請嚴格按照以下 JSON 格式回傳，不要包含 Markdown 標記 (如 ```json)：
+      請執行【圖文衝突仲裁機制】：
+      
+      1. **辨識圖片**：圖片內容是什麼？是食物嗎？
+      2. **判斷情境** (依序判定)：
+      
+         - **情境 A [完美情境]**：圖片清晰且是食物。
+           -> 行動：綜合分析圖片與文字。
+           -> 輸出：is_food: true, dish_name: 辨識結果, summary: 一般營養總結。
+           
+         - **情境 B [補救情境]**：圖片模糊/全黑/無法辨識，但使用者有輸入描述。
+           -> 行動：完全信賴使用者描述，提供標準估算值。
+           -> 輸出：is_food: true, dish_name: "$userInput (標準估算)", summary: "因圖片模糊，已依據文字分析提供標準數據。"
+           
+         - **情境 C [衝突情境]**：圖片清晰顯示為「非食物」(如貓、椅子、馬桶)，但使用者有輸入食物描述。
+           -> 行動：**強制信賴使用者描述**，忽略圖片內容。
+           -> 輸出：is_food: true, dish_name: "$userInput (文字估算)", summary: "圖片看起來是[圖片內容]，但已依據您的描述提供$userInput數據。"
+           
+         - **情境 D [無效情境]**：圖片非食物，且使用者「沒有」輸入描述。
+           -> 行動：拒絕服務。
+           -> 輸出：is_food: false, error_msg: "無法辨識為食物，請補充文字說明。"
+
+      【回傳格式 (JSON Only)】：
       {
-        "dish_name": "食物總稱",
-        "summary": "簡短總結 (約20字)",
+        "is_food": true/false,
+        "error_msg": "...",
+        "dish_name": "...",
+        "summary": "...",
         "ingredients": [
-          {
-            "name": "食材名稱",
-            "weight": 0,
-            "calories": 0,
-            "protein": 0,
-            "carbs": 0,
-            "fat": 0
-          }
+          {"name": "...", "weight": 0, "calories": 0, "protein": 0, "carbs": 0, "fat": 0}
         ]
       }
-      請確保數值是合理的估算。
       """;
 
       final content = [
         Content.multi([TextPart(prompt), DataPart('image/jpeg', _imageBytes!)]),
       ];
 
-      final response = await _model.generateContent(content);
+      final safetySettings = [
+        SafetySetting(HarmCategory.harassment, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.sexuallyExplicit, HarmBlockThreshold.medium),
+        SafetySetting(HarmCategory.dangerousContent, HarmBlockThreshold.medium),
+      ];
+
+      final response = await _model.generateContent(
+        content,
+        safetySettings: safetySettings,
+      );
       final responseText = response.text;
 
       if (responseText != null) {
@@ -460,48 +489,52 @@ class _DashboardPageState extends State<DashboardPage> {
           }
         }
 
-        final data = jsonDecode(cleanJson);
-        List<Ingredient> ingredients = [];
-        if (data['ingredients'] != null) {
-          ingredients = (data['ingredients'] as List)
-              .map((i) => Ingredient.fromJson(i))
-              .toList();
-        }
+        try {
+          final data = jsonDecode(cleanJson);
 
-        setState(() {
-          _analysisResult = FoodAnalysisResult(
-            dishName: data['dish_name'] ?? '未知食物',
-            aiSummary: data['summary'] ?? '無法產生總結',
-            ingredients: ingredients,
-            analyzedTime: DateTime.now(),
-          );
-        });
-
-        // 🌟 關鍵邏輯：使用 GlobalKey 進行精準定位與滑動
-        if (mounted) {
-          await Future.delayed(const Duration(milliseconds: 100));
-
-          // 檢查 Key 是否有對應的 Widget
-          if (_resultKey.currentContext != null) {
-            // Scrollable.ensureVisible 會自動計算位置，確保該 Widget 的頂部出現在可視區域
-            Scrollable.ensureVisible(
-              _resultKey.currentContext!,
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.easeOutQuart,
-              alignment: 0.0, // 0.0 表示對齊頂部
-            );
+          if (data['is_food'] == false) {
+            throw data['error_msg'] ?? "圖片無法辨識為食物";
           }
+
+          List<Ingredient> ingredients = [];
+          if (data['ingredients'] != null) {
+            ingredients = (data['ingredients'] as List)
+                .map((i) => Ingredient.fromJson(i))
+                .toList();
+          }
+
+          setState(() {
+            _analysisResult = FoodAnalysisResult(
+              dishName: data['dish_name'] ?? '未知食物',
+              aiSummary: data['summary'] ?? '無法產生總結',
+              ingredients: ingredients,
+              analyzedTime: DateTime.now(),
+            );
+          });
+
+          if (mounted) {
+            await Future.delayed(const Duration(milliseconds: 100));
+            if (_resultKey.currentContext != null) {
+              Scrollable.ensureVisible(
+                _resultKey.currentContext!,
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutQuart,
+                alignment: 0.0,
+              );
+            }
+          }
+        } catch (e) {
+          if (e is String) rethrow;
+          print("JSON 解析失敗: $cleanJson");
+          throw "AI 回傳格式有誤，請重試";
         }
       }
     } catch (e) {
-      _showSnackBar('分析失敗: $e');
-      if (kDebugMode) print("分析錯誤: $e");
+      String errorMessage = e.toString().replaceAll("Exception: ", "");
+      if (errorMessage.contains("Socket")) errorMessage = "網路連線錯誤";
+      _showSnackBar(errorMessage);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isAnalyzing = false;
-        });
-      }
+      if (mounted) setState(() => _isAnalyzing = false);
     }
   }
 
@@ -512,14 +545,22 @@ class _DashboardPageState extends State<DashboardPage> {
       _showSnackBar('錯誤：系統偵測到尚未登入');
       return;
     }
+    // 雙重檢查
     if (_analysisResult == null || _imageBytes == null) return;
 
     setState(() => _isAnalyzing = true);
 
     try {
-      String base64Image = base64Encode(_imageBytes!);
-      if (_imageBytes!.length > 800000) {
-        base64Image = base64Encode(_imageBytes!.sublist(0, 800000));
+      //  優化 3：使用 compute 在背景轉碼，避免主執行緒卡死 (ANR)
+      String base64Image = await _encodeImageInBackground(_imageBytes!);
+
+      //  優化 4：移除原本錯誤的 sublist 切割邏輯
+      // 因為我們已經在 ImagePicker 做過物理壓縮 (maxWidth:800)，
+      // 這裡直接存，保留圖片完整性。
+
+      // 安全檢查：雖然壓縮過，但如果還是太大，Firestore 會報錯，這裡先做個預防
+      if (base64Image.length > 1048576) {
+        throw "圖片壓縮後仍然過大 (超過1MB)，請嘗試重拍更簡單的畫面";
       }
 
       final recordRef = FirebaseFirestore.instance
@@ -537,6 +578,9 @@ class _DashboardPageState extends State<DashboardPage> {
         'created_at': FieldValue.serverTimestamp(),
         'analyzed_date_string': _formatDateTime(_analysisResult!.analyzedTime),
         'total_calories': _analysisResult!.totalCalories,
+        'total_protein': _analysisResult!.totalProtein,
+        'total_carbs': _analysisResult!.totalCarbs,
+        'total_fat': _analysisResult!.totalFat,
       };
 
       batch.set(recordRef, recordData);
@@ -551,12 +595,33 @@ class _DashboardPageState extends State<DashboardPage> {
       }
 
       await batch.commit();
-      _showSnackBar('分析結果已成功儲存！', isSuccess: true);
 
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) Navigator.pushNamed(context, '/');
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false, // 強制使用者點擊按鈕才能關閉
+          builder: (_) => AlertDialog(
+            title: const Text('儲存成功'),
+            content: const Text('分析結果已儲存。'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // 關閉 dialog
+                  Navigator.of(context).pop(); // 直接退出 dashboard 頁面，回到首頁
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
-      _showSnackBar('儲存失敗: $e');
+      print("儲存錯誤: $e");
+      if (e.toString().contains("larger than")) {
+        _showSnackBar('圖片過大，無法儲存');
+      } else {
+        _showSnackBar('儲存失敗: $e');
+      }
     } finally {
       if (mounted) setState(() => _isAnalyzing = false);
     }
@@ -572,7 +637,6 @@ class _DashboardPageState extends State<DashboardPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isSuccess ? Colors.teal : null,
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
       ),
@@ -586,12 +650,11 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 🟢 修改：App Bar 改為預設樣式 (跟 auth.dart 一致)
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 157, 198, 194),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFF2FDF9)),
         title: null,
         centerTitle: false,
+        // 移除 backgroundColor, iconTheme, elevation
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -602,12 +665,6 @@ class _DashboardPageState extends State<DashboardPage> {
             }
           },
         ),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: Colors.black87),
-          ),
-        ],
       ),
 
       body: LayoutBuilder(
@@ -715,7 +772,6 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
 
             Container(
-              // 🌟 2. 這裡綁定 Key，讓程式知道這是「結果卡片」
               key: _resultKey,
               transform: Matrix4.translationValues(0.0, -20.0, 0.0),
               decoration: const BoxDecoration(
@@ -731,11 +787,11 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
             ),
-
           ],
         ),
       );
     } else {
+      // 電腦版
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Row(
@@ -769,11 +825,14 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildImageSection() {
     if (_imageBytes != null) {
-      return Image.memory(
-        _imageBytes!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.memory(
+          _imageBytes!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
       );
     }
 
@@ -845,13 +904,12 @@ class _DashboardPageState extends State<DashboardPage> {
               Expanded(
                 child: TextButton(
                   onPressed: _resetAll,
+                  // 🟢 保留灰色取消按鈕，但統一高度
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    foregroundColor: Colors.grey,
                   ),
-                  child: const Text(
-                    '重選 / 取消',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  child: const Text('重選 / 取消'),
                 ),
               ),
             if (_imageBytes != null) const SizedBox(width: 12),
@@ -865,18 +923,9 @@ class _DashboardPageState extends State<DashboardPage> {
                           ? _analyzeImage
                           : _saveToFirestore)
                     : null,
+                // 🟢 統一按鈕高度 50，顏色跟隨 AppTheme
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: (_imageBytes != null && _isApiKeyLoaded)
-                      ? (_analysisResult == null
-                            ? Colors.teal
-                            : const Color(0xFF2F857D))
-                      : Colors.grey[300],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  elevation: 2,
+                  minimumSize: const Size(double.infinity, 50),
                 ),
                 child: _isAnalyzing
                     ? const SizedBox(
@@ -909,7 +958,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildResultSection(bool isMobile) {
     if (_analysisResult == null) return const SizedBox.shrink();
-
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
