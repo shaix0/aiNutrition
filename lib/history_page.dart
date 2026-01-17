@@ -1,19 +1,15 @@
-// 匯入 Flutter 的 Material UI 函式庫
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; // Flutter Material UI 
 import 'dart:async'; // 管理StreamSubscription(監聽器的開關)
-import 'package:fl_chart/fl_chart.dart'; //圓餅圖套件
-import 'package:firebase_core/firebase_core.dart'; //Firebase核心
-import 'package:cloud_firestore/cloud_firestore.dart'; // 引入Firestore資料庫功能
+import 'package:fl_chart/fl_chart.dart'; // 圓餅圖
+import 'package:firebase_core/firebase_core.dart'; // Firebase核心
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore資料庫
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:convert'; // 添加這行，為了 base64Decode
-import 'dart:typed_data'; // 添加這行，為了 Uint8List
+import 'dart:convert'; // base64Decode
+import 'dart:typed_data'; // Uint8List
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'notification_handler.dart';
+import 'notifications/notification_ui.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb
-
-// ----------------------------------------------
-// 資料模型區(Models)：定義資料的樣子
-// ----------------------------------------------
 
 // 每個"食物"的資料結構
 class FoodItem {
@@ -459,20 +455,14 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: const Color.fromARGB(255, 157, 198, 194),
+        backgroundColor: const Color(0xFFA5C5C2),
         elevation: 0,
-        /* TODO：通知欄
         leading: IconButton(
           icon: const Icon(Icons.notifications),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationListPage(),
-              ),
-            );
+            NotificationUI.showTodayNotifications(context);
           },
-        ),*/
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 25.0), // 增加右邊距，讓它看起來往左移
@@ -1148,7 +1138,7 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
 } // 結束 _NutritionHomePageState
 
 // ----------------------------------------------
-// 彈出視窗內容(詳情頁面)
+// 詳情頁面
 // ----------------------------------------------
 
 class FoodEditDialogContent extends StatefulWidget {

@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 引入環境變數套件
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../services/nutrition_service.dart';
 
 // -----------------------------------------------------------------------------
@@ -149,7 +148,6 @@ class _DashboardPageState extends State<DashboardPage> {
     final auth = FirebaseAuth.instance;
     if (auth.currentUser == null) {
       try {
-        await auth.signInAnonymously();
       } catch (e) {
         print("Dashboard: 補救登入失敗: $e");
       }
