@@ -5,12 +5,26 @@ import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'app_theme.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // 全局變數，用於儲存當前登入的使用者資訊
 User? currentUser;
 
 // 負責初始化 Firebase Auth，並確保使用固定的匿名 UID
 Future<void> _initializeAuth() async {
+  try {
+    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: 'user1@test.com',
+      password: 'testuser1'
+    );
+  } on FirebaseAuthException catch (e) {
+    if (e.code == 'user-not-found') {
+      print('No user found for that email.');
+    } else if (e.code == 'wrong-password') {
+      print('Wrong password provided for that user.');
+    }
+  }
+
   // 1. 檢查是否有現有的使用者登入狀態
   currentUser = FirebaseAuth.instance.currentUser;
 
@@ -28,6 +42,12 @@ Future<void> _initializeAuth() async {
     // 3. 如果有現有使用者，直接使用，確保每次測試 UID 都是固定的
     print('=== 找到現有使用者，使用舊 UID: ${currentUser!.uid} ===');
   }
+}
+
+// 背景訊息處理
+Future<void> _backgroundMessageHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("背景收到訊息: ${message.data}");
 }
 
 Future<void> main() async {
@@ -50,7 +70,8 @@ Future<void> main() async {
 
   // 4. 初始化身份驗證 (確保在 App 運行前登入完成)
   await _initializeAuth();
-
+  // 註冊背景訊息 handler
+  FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
   //await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
   //final userCredential = await FirebaseAuth.instance.signInAnonymously();
   //print('匿名使用者登入成功，UID: ${userCredential.user?.uid}');

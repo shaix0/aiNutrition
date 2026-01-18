@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert'; // base64Decode
 import 'dart:typed_data'; // Uint8List
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'notification_handler.dart';
+import 'notifications/notification_handler.dart';
 import 'notifications/notification_ui.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb
 
@@ -246,7 +246,7 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
     super.initState();
     _selectedDate = DateTime.now();
     _initFCM();
-    NotificationHandler.init(context);
+    NotificationHandler.init();
 
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user == null) {
@@ -458,6 +458,7 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
         backgroundColor: const Color(0xFFA5C5C2),
         elevation: 0,
         leading: IconButton(
+          padding: const EdgeInsets.only(left: 25.0),
           icon: const Icon(Icons.notifications),
           onPressed: () {
             NotificationUI.showTodayNotifications(context);

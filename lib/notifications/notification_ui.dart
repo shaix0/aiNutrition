@@ -35,7 +35,7 @@ class _TodayNotificationSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 今日通知（最多顯示 3 則）
+            // 今日通知 ( 最新5筆 )
             StreamBuilder<List<AppNotification>>(
               stream: NotificationRepository.todayNotificationsStream(),
               builder: (context, snapshot) {
@@ -56,7 +56,7 @@ class _TodayNotificationSheet extends StatelessWidget {
                 }
 
                 return Column(
-                  children: list.take(3).map((n) {
+                  children: list.take(5).map((n) {
                     return ListTile(
                       leading: const Icon(Icons.notifications_none),
                       title: Text(n.title),
