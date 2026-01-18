@@ -457,21 +457,24 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFA5C5C2),
         elevation: 0,
-        leading: IconButton(
-          padding: const EdgeInsets.only(left: 25.0),
-          icon: const Icon(Icons.notifications),
-          onPressed: () {
-            NotificationUI.showTodayNotifications(context);
-          },
-        ),
+        leadingWidth: 56 + 25,
+        leading: 
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            //tooltip: '通知',
+            onPressed: () {
+              NotificationUI.showTodayNotifications(context);
+            },
+          ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 25.0), // 增加右邊距，讓它看起來往左移
             child: IconButton(
+              icon: const Icon(Icons.settings),
+              //tooltip: '設定',
               onPressed: () async {
                 await _navigateToSettings();
               },
-              icon: const Icon(Icons.settings),
             ),
           ),
         ],
