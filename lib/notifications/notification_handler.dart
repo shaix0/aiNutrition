@@ -6,13 +6,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 class NotificationHandler {
   static final _localNotifications = FlutterLocalNotificationsPlugin();
 
-  /// 初始化（App 啟動時呼叫）
+  // 初始化（App 啟動時呼叫）
   static Future<void> init() async {
     await _initLocalNotification();
     _initFCMListener();
   }
 
-  /// 本地通知初始化（前台顯示用）
+  // 本地通知初始化（前台顯示用）
   static Future<void> _initLocalNotification() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
@@ -25,9 +25,9 @@ class NotificationHandler {
     await _localNotifications.initialize(settings);
   }
 
-  /// FCM 前 / 後台監聽
+  // FCM 前 / 後台監聽
   static void _initFCMListener() {
-    /// 🔔 前台 → 手動顯示系統通知
+    // 前台 → 手動顯示系統通知
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
       if (notification == null) return;
@@ -48,13 +48,13 @@ class NotificationHandler {
       );
     });
 
-    /// 點擊系統通知打開 App
+    // 點擊系統通知打開 App
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       // 不強制導頁，讓使用者自己點鈴鐺
     });
   }
 
-  /// 取得 FCM Token
+  // 取得 FCM Token
   static Future<String?> getFcmToken() async {
     return await FirebaseMessaging.instance.getToken();
   }
