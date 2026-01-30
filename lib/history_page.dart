@@ -7,9 +7,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert'; // base64Decode
 import 'dart:typed_data'; // Uint8List
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb
+// 通知欄
 import 'notifications/notification_handler.dart';
 import 'notifications/notification_ui.dart';
-import 'package:flutter/foundation.dart'; // kIsWeb
+import 'notifications/notification_bell.dart';
 
 // 每個"食物"的資料結構
 class FoodItem {
@@ -457,16 +459,23 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFA5C5C2),
         elevation: 0,
-        leadingWidth: 56 + 25,
-        leading: 
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            //tooltip: '通知',
-            onPressed: () {
-              NotificationUI.showTodayNotifications(context);
-            },
-          ),
+        //leadingWidth: 56 + 25,
+        /*leading: NotificationBell(
+          //icon: const Icon(Icons.notifications),
+          //tooltip: '通知',
+          onPressed: () {
+            NotificationUI.showTodayNotifications(context);
+          },
+        ),*/
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 15.0),
+            child: NotificationBell(
+              onPressed: () {
+                NotificationUI.showTodayNotifications(context);
+              },
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 25.0), // 增加右邊距，讓它看起來往左移
             child: IconButton(

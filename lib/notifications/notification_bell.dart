@@ -1,5 +1,3 @@
-// lib/notifications/notification_bell.dart
-
 import 'package:flutter/material.dart';
 import 'notification_repository.dart';
 
@@ -18,28 +16,16 @@ class NotificationBell extends StatelessWidget {
       builder: (context, snapshot) {
         final unread = snapshot.data ?? 0;
 
-        return Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications),
-              onPressed: onPressed,
-            ),
-
-            // 未讀紅點
-            if (unread > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
+        return Badge(
+          isLabelVisible: unread > 0,
+          smallSize: 10,                 // 紅點大小
+          backgroundColor: Colors.red,
+          alignment: Alignment.topRight, // 穩定對齊右上
+          offset: const Offset(5, 5),   // 微調位置（不會亂跑）
+          child: IconButton(
+            icon: const Icon(Icons.notifications_rounded),
+            onPressed: onPressed,
+          ),
         );
       },
     );

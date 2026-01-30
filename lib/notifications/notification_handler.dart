@@ -2,6 +2,7 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'notification_repository.dart';
 
 class NotificationHandler {
   static final _localNotifications = FlutterLocalNotificationsPlugin();
@@ -28,7 +29,7 @@ class NotificationHandler {
   // FCM 前 / 後台監聽
   static void _initFCMListener() {
     // 前台 → 手動顯示系統通知
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       final notification = message.notification;
       if (notification == null) return;
 
@@ -46,11 +47,16 @@ class NotificationHandler {
           iOS: DarwinNotificationDetails(),
         ),
       );
+
+      // 存進站內通知
+      await NotificationRepository.saveFromFCM(message);
     });
 
     // 點擊系統通知打開 App
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    FirebaseMessaging.onMessageOpenedApp.listen((message) async {
       // 不強制導頁，讓使用者自己點鈴鐺
+      // 或開啟今日通知畫面?
+      await NotificationRepository.saveFromFCM(message);
     });
   }
 

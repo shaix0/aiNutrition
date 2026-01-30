@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'notification_repository.dart';
-import 'notification_model.dart';
 
 class NotificationListPage extends StatelessWidget {
   const NotificationListPage({super.key});
@@ -10,7 +9,20 @@ class NotificationListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('所有通知')),
+      appBar: AppBar(
+        title: const Text('所有通知'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await NotificationRepository.markAllAsRead();
+            },
+            child: const Text(
+              '全部標示已讀',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
       body: StreamBuilder<List<AppNotification>>(
         stream: NotificationRepository.allNotificationsStream(),
         builder: (context, snapshot) {
@@ -28,15 +40,40 @@ class NotificationListPage extends StatelessWidget {
             itemCount: list.length,
             itemBuilder: (context, index) {
               final n = list[index];
-              return ListTile(
-                leading: const Icon(Icons.notifications),
-                title: Text(n.title),
-                subtitle: Text(n.body),
-                onTap: () {
-                  if (!n.read) {
-                    NotificationRepository.markAsRead(n.id);
-                  }
-                },
+
+              final icon = n.read ? Icons.notifications_rounded : Icons.notifications_none_rounded;
+              final bgColor = n.read ? Colors.grey[200] : Colors.white;
+              //final iconColor = n.read ? Colors.grey : Colors.redAccent;
+              final titleStyle = TextStyle(
+                color: n.read ? Colors.grey[700] : Colors.black,
+                fontWeight: n.read ? FontWeight.normal : FontWeight.bold,
+              );
+              final subtitleStyle = TextStyle(
+                color: n.read ? Colors.grey[600] : Colors.black87,
+              );
+
+              return Container(
+                color: bgColor,
+                child: ListTile(
+                  leading: Icon(
+                    icon,
+                    color: Colors.grey,
+                  ),
+                  title: Text(
+                    n.title,
+                    style: titleStyle,
+                  ),
+                  subtitle: Text(
+                    n.body,
+                    style: subtitleStyle,
+                  ),
+                  onTap: () {
+                    if (!n.read) {
+                      NotificationRepository.markAsRead(n.id);
+                    }
+                    // 可跳轉詳情頁
+                  },
+                ),
               );
             },
           );

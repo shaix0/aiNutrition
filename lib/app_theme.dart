@@ -8,7 +8,7 @@ class AppTheme {
   static const Color primaryLight = Color(0xFFF2FDF9);
 
   static ThemeData theme = ThemeData(
-    useMaterial3: true,
+    //useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(seedColor: primaryDeep).copyWith(
       primary: primaryDeep,
       surface: Colors.white,

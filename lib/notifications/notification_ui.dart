@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'notification_repository.dart';
 import 'notification_list_page.dart';
-import 'notification_model.dart';
 
 class NotificationUI {
+  /// 顯示今日通知彈窗
   static void showTodayNotifications(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -17,6 +17,7 @@ class NotificationUI {
   }
 }
 
+/// 今日通知底部彈窗
 class _TodayNotificationSheet extends StatelessWidget {
   const _TodayNotificationSheet();
 
@@ -35,7 +36,7 @@ class _TodayNotificationSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 今日通知 ( 最新5筆 )
+            // 今日通知 (最新 5 筆)
             StreamBuilder<List<AppNotification>>(
               stream: NotificationRepository.todayNotificationsStream(),
               builder: (context, snapshot) {
@@ -57,18 +58,39 @@ class _TodayNotificationSheet extends StatelessWidget {
 
                 return Column(
                   children: list.take(5).map((n) {
-                    return ListTile(
-                      leading: const Icon(Icons.notifications_none),
-                      title: Text(n.title),
-                      subtitle: Text(
-                        n.body,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    final bgColor = n.read ? Colors.grey[200] : Colors.white;
+                    //final iconColor = n.read ? Colors.grey : Colors.redAccent;
+                    final titleStyle = TextStyle(
+                      color: n.read ? Colors.grey[700] : Colors.black,
+                      fontWeight:
+                          n.read ? FontWeight.normal : FontWeight.bold,
+                    );
+                    final subtitleStyle = TextStyle(
+                      color: n.read ? Colors.grey[600] : Colors.black87,
+                    );
+
+                    return Container(
+                      color: bgColor,
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.notifications_none_rounded,
+                          color: Colors.grey,
+                        ),
+                        title: Text(
+                          n.title,
+                          style: titleStyle,
+                        ),
+                        subtitle: Text(
+                          n.body,
+                          style: subtitleStyle,
+                        ),
+                        onTap: () {
+                          if (!n.read) {
+                            NotificationRepository.markAsRead(n.id);
+                          }
+                          // 可跳轉詳情頁或其他操作
+                        },
                       ),
-                      onTap: () {
-                        NotificationRepository.markAsRead(n.id);
-                        // 之後可導向詳情頁
-                      },
                     );
                   }).toList(),
                 );
