@@ -28,8 +28,8 @@ Future<void> _initializeAuth() async {
   // 1. 檢查是否有現有的使用者登入狀態
   currentUser = FirebaseAuth.instance.currentUser;
 
+  // 2. 如果沒有，則執行匿名登入，並取得新的 UID
   if (currentUser == null) {
-    // 2. 如果沒有，則執行匿名登入，並取得新的 UID
     try {
       final userCredential = await FirebaseAuth.instance.signInAnonymously();
       currentUser = userCredential.user;
@@ -40,7 +40,7 @@ Future<void> _initializeAuth() async {
     }
   } else {
     // 3. 如果有現有使用者，直接使用，確保每次測試 UID 都是固定的
-    print('=== 找到現有使用者，使用舊 UID: ${currentUser!.uid} ===');
+    print('=== 找到現有使用者UID: ${currentUser!.uid} ===');
   }
 }
 
@@ -55,14 +55,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 2. 載入環境變數 (.env)
-  // 這是修復 NotInitializedError 的關鍵步驟
   try {
-    // 假設您的環境變數檔案名稱為 .env
     await dotenv.load(fileName: ".env");
     print("環境變數載入成功！");
   } catch (e) {
     print("環境變數載入失敗: $e");
-    // 如果這裡失敗，後續用到 dotenv.env 的地方都會出錯
   }
 
   // 3. 初始化 Firebase 核心服務

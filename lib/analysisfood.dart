@@ -12,10 +12,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/nutrition_service.dart';
 
-// -----------------------------------------------------------------------------
 // 資料模型 (Models)
-// -----------------------------------------------------------------------------
-
 class Ingredient {
   String name;
   double weight; // 克
@@ -92,10 +89,7 @@ class FoodAnalysisResult {
       ingredients.where((i) => i.isSelected).fold(0, (sum, i) => sum + i.fat);
 }
 
-// -----------------------------------------------------------------------------
-// Dashboard Page (分析頁面主體)
-// -----------------------------------------------------------------------------
-
+// 分析頁面
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -162,7 +156,7 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  // 2. 初始化 Gemini Model
+  // 初始化 Gemini Model
   void _initializeAI() {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
@@ -174,9 +168,7 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() => _isApiKeyLoaded = true);
   }
 
-  // ---------------------------------------------------------------------------
-  // 3. 選擇圖片邏輯
-  // ---------------------------------------------------------------------------
+  // 選擇圖片邏輯
   Future<void> _showImagePickerOptions() async {
     if (kIsWeb) {
       await _pickImageFromGallery();
@@ -292,8 +284,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  // 速度優化 1：調整圖片壓縮參數 (maxWidth: 600, quality: 50)
-  // 這會大幅減少上傳時間，解決 "分析要20秒" 的問題
+  // 圖片壓縮 (maxWidth: 600, quality: 50)
   Future<void> _takePhotoWithCamera() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -443,9 +434,7 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // 5. 開始分析
-  // ---------------------------------------------------------------------------
+  // AI分析
   Future<void> _analyzeImage() async {
     if (_imageBytes == null) return;
     if (!_isApiKeyLoaded) {
@@ -664,7 +653,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  // 6. 儲存到 Firestore
+  // 儲存到 Firestore
   Future<void> _saveToFirestore() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -674,7 +663,6 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_analysisResult == null || _imageBytes == null) return;
 
     // 防呆機制：檢查是否有選取任何食材
-
     final hasSelectedItems = _analysisResult!.ingredients.any(
       (i) => i.isSelected,
     );
@@ -774,10 +762,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // =========================================================================
-  // UI 佈局核心邏輯
-  // =========================================================================
-
+  // UI 
   @override
   Widget build(BuildContext context) {
     return Scaffold(

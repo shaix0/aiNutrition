@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart'; // Flutter Material UI 
 import 'dart:async'; // 管理StreamSubscription(監聽器的開關)
 import 'package:fl_chart/fl_chart.dart'; // 圓餅圖
-import 'package:firebase_core/firebase_core.dart'; // Firebase核心
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore資料庫
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert'; // base64Decode

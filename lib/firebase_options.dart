@@ -41,48 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBJQ76n5gPZgQRBH2oq4ojmbry-8__iuIA',
-    appId: '1:1086613473742:web:7834e3199e2184f8fd039f',
-    messagingSenderId: '1086613473742',
-    projectId: 'nutritionanalyzer-6485e',
-    authDomain: 'nutritionanalyzer-6485e.firebaseapp.com',
-    storageBucket: 'nutritionanalyzer-6485e.firebasestorage.app',
-    measurementId: 'G-KVPXPC3FB5',
+    apiKey: 'AIzaSyAVXTWtxQ_y-9GgqqDngCo9RttypbOnNA4',
+    appId: '1:749493468449:web:21e33e859aae67cec1d260',
+    messagingSenderId: '749493468449',
+    projectId: 'ai-nutrition-identifier',
+    authDomain: 'ai-nutrition-identifier.firebaseapp.com',
+    storageBucket: 'ai-nutrition-identifier.firebasestorage.app',
+    measurementId: 'G-2C0K0T0HMW',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAwS2IswiYpPj2yVOliJjIu_fggacJQc6k',
-    appId: '1:1086613473742:android:39ffc3d1623ab1e6fd039f',
-    messagingSenderId: '1086613473742',
-    projectId: 'nutritionanalyzer-6485e',
-    storageBucket: 'nutritionanalyzer-6485e.firebasestorage.app',
+    apiKey: 'AIzaSyDHJhsiWDav4b1QPHy9zC9oP2x6p8qwPg4',
+    appId: '1:749493468449:android:2180c07b58748a87c1d260',
+    messagingSenderId: '749493468449',
+    projectId: 'ai-nutrition-identifier',
+    storageBucket: 'ai-nutrition-identifier.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC2zko1nTawu9RiVUJe7YD-UCK7fBUDawM',
-    appId: '1:1086613473742:ios:42138b3cc52d57a1fd039f',
-    messagingSenderId: '1086613473742',
-    projectId: 'nutritionanalyzer-6485e',
-    storageBucket: 'nutritionanalyzer-6485e.firebasestorage.app',
+    apiKey: 'AIzaSyA-VFha_2sjF30W0eqoEGyEMT0atNdEe5o',
+    appId: '1:749493468449:ios:dbcbdd6375e39b13c1d260',
+    messagingSenderId: '749493468449',
+    projectId: 'ai-nutrition-identifier',
+    storageBucket: 'ai-nutrition-identifier.firebasestorage.app',
     iosBundleId: 'com.example.nutrition',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC2zko1nTawu9RiVUJe7YD-UCK7fBUDawM',
-    appId: '1:1086613473742:ios:42138b3cc52d57a1fd039f',
-    messagingSenderId: '1086613473742',
-    projectId: 'nutritionanalyzer-6485e',
-    storageBucket: 'nutritionanalyzer-6485e.firebasestorage.app',
+    apiKey: 'AIzaSyA-VFha_2sjF30W0eqoEGyEMT0atNdEe5o',
+    appId: '1:749493468449:ios:dbcbdd6375e39b13c1d260',
+    messagingSenderId: '749493468449',
+    projectId: 'ai-nutrition-identifier',
+    storageBucket: 'ai-nutrition-identifier.firebasestorage.app',
     iosBundleId: 'com.example.nutrition',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBJQ76n5gPZgQRBH2oq4ojmbry-8__iuIA',
-    appId: '1:1086613473742:web:690cd2db0e94c7fafd039f',
-    messagingSenderId: '1086613473742',
-    projectId: 'nutritionanalyzer-6485e',
-    authDomain: 'nutritionanalyzer-6485e.firebaseapp.com',
-    storageBucket: 'nutritionanalyzer-6485e.firebasestorage.app',
-    measurementId: 'G-P6ZL2E8SQ9',
+    apiKey: 'AIzaSyCh7XgUfCnkpN2vHHVwMtZZTAA1nma5GiA',
+    appId: '1:749493468449:web:0baf6933c6592241c1d260',
+    messagingSenderId: '749493468449',
+    projectId: 'ai-nutrition-identifier',
+    authDomain: 'ai-nutrition-identifier.firebaseapp.com',
+    storageBucket: 'ai-nutrition-identifier.firebasestorage.app',
+    measurementId: 'G-SCQD8C4QSY',
   );
+
 }
