@@ -1,4 +1,5 @@
 name: Build
+
 on:
   push:
     branches:
@@ -7,77 +8,38 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  sonarqube-backend:
-    name: SonarQube Backend (Python FastAPI)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      # 構建後端項目
-      - name: Build Backend
-        run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-        shell: pwsh
-      
-      # 運行測試並生成覆蓋率報告(可選但建議)
-      - name: Run Tests
-        run: |
-          cd backend
-          pytest --cov=. --cov-report=xml
-        shell: pwsh
-        continue-on-error: true  # 如果沒有測試,繼續執行
-      
-      - name: SonarQube Scan Backend
-        uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          projectBaseDir: backend
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest
 
-  sonarqube-frontend:
-    name: SonarQube Frontend (Flutter)
-    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+
+      # ---------- Flutter ----------
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.0'
-          channel: 'stable'
-      
-      # 構建 Flutter 項目
-      - name: Build Frontend
+          flutter-version: '3.x'
+
+      - name: Flutter dependencies
         run: |
-          cd frontend
           flutter pub get
-          flutter build apk --debug
-        shell: pwsh
-      
-      # 運行測試並生成覆蓋率(可選但建議)
-      - name: Run Tests
+          flutter analyze
+
+      # ---------- Python ----------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
         run: |
-          cd frontend
-          flutter test --coverage
-        shell: pwsh
-        continue-on-error: true
-      
-      - name: SonarQube Scan Frontend
+          cd app
+          pip install -r requirements.txt
+
+      # ---------- Sonar ----------
+      - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          projectBaseDir: frontend
