@@ -1,92 +1,32 @@
-# nutrition
+# 基於大語言模型的食物影像營養估算系統
 
-A new Flutter project.
+本專案基於團隊大三專題整理，主要負責使用者帳號權限管理、部分前端介面設計(設定、管理員頁面)。  
+使用 Flutter + FastAPI ，串接Gemini模型，實現使用者上傳食物照片後自動分析營養成分生成報告。
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 專題動機
 
-A few resources to get you started if this is your first Flutter project:
+由於現代人對於健康管理與飲食追蹤的需求日益增加，市面上雖有許多相似的營養追蹤工具，但缺乏著便利、準確等主要功能，而手動記錄又費時費力。  且現在的AI視覺識別技術已趨成熟，可將其應用至食物識別與營養估算上。
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 功能特色
 
+-  **AI 智慧影像估算**：  
+採用 GOOGLE GEMINI 2.5 FLASH 模型進行影像辨識。先由 AI 進行食材辨識與語意指令解析（如「半飯」運算），再自動對接內建的「衛福部食品營養資料庫」進行查表校正，有效修正數值誤差，提供精準且即時的營養分析結果。
 
-# 🥗 AI 營養素分析 (ainutrition) 專案協作指南
+- **個人化健康目標設定**：  
+依據一般包裝食品營養標示標準，設定通用的成人每日建議攝取量。當用戶輸入個人生理數值後，系統會依據BMR公式與活動係數，自動計算個人專屬的每日目標熱量與三大營養素建議量。
 
-歡迎所有組員！為了確保主程式碼的穩定性，我們將採用嚴格的分支工作流程。
+- **帳號與權限管理**：  
+採用 FIREBASE AUTHENTICATION 處理帳號相關操作，如登入、註冊、寄送驗證信等操作。後端採用 FASTAPI 框架，透過後端驗證帳號權限，確保使用者身分不可由前端任意竄改
 
-## 👥 第一次設定：複製專案 (Clone)
+---
 
-請使用以下指令將專案下載到您的本地電腦：
+## 技術棧
 
-```bash
-# 請使用 HTTPS 協定複製您的私人專案
-git clone https://github.com/pennywong11/ainutrition.git
-
-# 進入專案資料夾
-cd ainutrition
-````
-
-## 🛠️ 日常開發流程：確保 `main` 分支的穩定
-
-**⚠️ 警告：** **絕對禁止** 在 `main` 分支上直接開發或修改程式碼！
-
-### 步驟 1: 建立新的工作分支 (Branch)
-
-每次開始新功能開發或修復 Bug 之前，請先從 `main` 分支拉取最新程式碼，並建立一個新的分支：
-
-```bash
-# 確保您在 main 分支上並同步遠端最新內容
-git switch main
-git pull
-
-# 建立並切換到新的工作分支
-# 請將 [您的分支名稱] 替換為實際的名稱，例如：feat/implement-camera-picker 或 fix/login-bug
-git switch -c [您的分支名稱]
-```
-
-### 步驟 2: 開發、提交與推送 (Commit & Push)
-
-在您的新分支上進行程式碼修改，並定期提交到您的本地紀錄：
-
-```bash
-# 完成修改後，將變動加入暫存區
-git add .
-
-# 提交變動
-git commit -m "Feat: 實作了食物照片擷取功能" 
-# [提示] 請使用簡短清晰的 Commit 訊息
-```
-
-然後，將您的工作分支推送到 GitHub 遠端儲存庫：
-
-```bash
-# 第一次推送時，設定追蹤遠端分支
-git push -u origin [您的分支名稱]
-```
-
-### 步驟 3: 請求合併 (Pull Request, PR)
-
-當您確定功能已完成且經過測試時，**請不要自己合併**。您需要在 GitHub 網站上提交 Pull Request (PR)：
-
-1.  進入 GitHub 專案頁面。
-2.  點擊 **`Pull requests`** 選項卡。
-3.  點擊 **`New pull request`**。
-4.  將 **您的分支** 請求合併到 **`main`** 分支。
-5.  等待組長或指定的審核人審核並合併。
-
-## 🔒 環境變數 (.env) 安全提示
-
-  * 專案中的 **`.env`** 檔案用於存放機密金鑰，它已被加入 **`.gitignore`** 清單中。
-  * **請勿** 提交 `.env` 檔案到 Git。
-  * 如果您需要新增環境變數，請在本地 `.env` 中加入，並參考 **`.env.example`** 來了解所有需要的變數。
-
-<!-- end list -->
-
-```
-```
+- **前端**：Flutter  
+- **後端**：FastAPI   
+- **AI 模型**：GEMINI 2.5 FLASH
+- **資料庫**：FIRESORE
