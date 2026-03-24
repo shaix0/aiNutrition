@@ -46,5 +46,11 @@
 
 - **前端**：Flutter  
 - **後端**：FastAPI   
-- **AI 模型**：GEMINI 2.5 FLASH
+- **AI 模型**：GEMINI 2.5 FLASH  
+  - 預計改以用開源模型進行微調，嘗試提高辨識精準度。目前測試 Qwen2.5-VL-3B-Instruct 模型以 3000 張照片做訓練 ( Nutrition5k, Train70% / Val15% / Test15% ) 做訓練，相較微調前有較低的mape：  
+    mass：44.7%  
+    cal：80.1%  
+    fat：71.7%  
+    carb：68.1%  
+    protein：97.5%  
 - **資料庫**：Firestore
