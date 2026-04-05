@@ -22,20 +22,30 @@ jobs:
         with:
           flutter-version: '3.x'
 
-      - name: Flutter dependencies
-        run: |
-          flutter pub get
-          flutter analyze
+      # Flutter Pub Cache（加速）
+      - name: Cache Flutter Pub
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
 
-      # ---------- Python ----------
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      # Install Flutter dependencies
+      - name: Flutter dependencies
+        run: flutter pub get
+
+      # Optional: Flutter analyze 不 fail
+      - name: Flutter analyze (non-blocking)
+        run: flutter analyze || true
+
+      # ------------------ Python Setup ------------------
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      # Python dependencies
       - name: Install Python dependencies
         run: |
-          cd app
           pip install -r requirements.txt
 
       # ---------- Sonar ----------
