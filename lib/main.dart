@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'app_theme.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'notifications/notification_handler.dart';
 
 // 全局變數，用於儲存當前登入的使用者資訊
 User? currentUser;
@@ -67,6 +68,8 @@ Future<void> main() async {
 
   // 4. 初始化身份驗證 (確保在 App 運行前登入完成)
   await _initializeAuth();
+  // 5. 初始化通知處理器（包含 FCM 和本地通知）
+  await NotificationHandler.init();
   // 註冊背景訊息 handler
   FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
   //await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);

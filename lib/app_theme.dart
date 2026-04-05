@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // 主題顏色自行放這裡或另外抽
   static const Color primaryDeep = Color(0xFFA5C5C2);
   static const Color primaryLight = Color(0xFFF2FDF9);
 
@@ -12,7 +11,6 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(seedColor: primaryDeep).copyWith(
       primary: primaryDeep,
       surface: Colors.white,
-      background: primaryLight,
     ),
     scaffoldBackgroundColor: primaryLight,
 

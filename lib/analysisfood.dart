@@ -204,9 +204,9 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
-          child: const Text('取消'),
           isDestructiveAction: true,
           onPressed: () => Navigator.pop(context, 0),
+          child: const Text('取消'),
         ),
       ),
     );
@@ -569,7 +569,7 @@ class _DashboardPageState extends State<DashboardPage> {
               List<FoodItem> matches = [];
               for (var term in searchTerms) {
                 // 這裡使用 await，無論是 SQLite 還是 CSV 都能通用
-                var currentMatches = await _nutritionService.searchFood(term);
+                var currentMatches = _nutritionService.searchFood(term);
 
                 if (currentMatches.isNotEmpty) {
                   // 智慧排序邏輯

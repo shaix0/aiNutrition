@@ -340,7 +340,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: cs.background,
+                            color: cs.surface,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: cs.primary.withOpacity(0.2),
@@ -359,7 +359,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isLoggedIn ? user!.email! : "未登入使用者",
+                                isLoggedIn ? user.email! : "未登入使用者",
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,

@@ -169,7 +169,7 @@ class _AdminPageState extends State<AdminPage> {
     if (resp.statusCode == 200) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("成功新增使用者${email}")));
+      ).showSnackBar(SnackBar(content: Text("成功新增使用者$email")));
 
       _getUsers(); // 🔵 自動刷新列表
     } else {
@@ -237,6 +237,99 @@ class _AdminPageState extends State<AdminPage> {
                 Navigator.pop(context); // 關閉彈窗
 
                 await _createUser(email, password);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 發送通知
+  Future<void> _sendNotification(String title, String body) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    if (token == null) return;
+
+    final resp = await http.post(
+      Uri.parse("$apiBaseUrl/notifications/send"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: {
+        "title": title,
+        "body": body,
+      },
+    );
+
+    if (resp.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("通知發送成功")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("發送失敗：${resp.body}")),
+      );
+    }
+  }
+
+  void _showSendNotificationDialog() {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          title: const Text("發送通知"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: "標題",
+                  prefixIcon: Icon(Icons.title),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bodyController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: "內容",
+                  prefixIcon: Icon(Icons.message),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text("取消"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+              ),
+              child: const Text("發送"),
+              onPressed: () async {
+                final title = titleController.text.trim();
+                final body = bodyController.text.trim();
+
+                if (title.isEmpty || body.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("標題與內容不可為空")),
+                  );
+                  return;
+                }
+
+                Navigator.pop(context);
+
+                await _sendNotification(title, body);
               },
             ),
           ],
@@ -385,7 +478,7 @@ class _AdminPageState extends State<AdminPage> {
                   },
                 ),
             filled: true,
-            fillColor: cs.surfaceVariant,
+            fillColor: cs.surfaceContainerHighest,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
@@ -398,7 +491,7 @@ class _AdminPageState extends State<AdminPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: cs.surfaceVariant,
+                color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -415,7 +508,7 @@ class _AdminPageState extends State<AdminPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: cs.surfaceVariant,
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -509,7 +602,7 @@ class _AdminPageState extends State<AdminPage> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: cs.surfaceVariant.withOpacity(0.2),
+              color: cs.surfaceContainerHighest.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -684,6 +777,16 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     const SizedBox(height: 12),
 
+                    _toolButton(
+                      icon: Icons.notifications,
+                      label: "發送通知",
+                      cs: cs,
+                      onTap: () {
+                        _showSendNotificationDialog();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
                     /*_toolButton(
                       icon: Icons.admin_panel_settings,
                       label: "設定管理員",
@@ -750,7 +853,7 @@ class _AdminPageState extends State<AdminPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: cs.background.withOpacity(0.8),
+          color: cs.surface.withOpacity(0.8),
           borderRadius: BorderRadius.circular(12),
           //border: Border.all(color: color.withOpacity(0.3)),
         ),

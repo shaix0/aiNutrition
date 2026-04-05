@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'notification_repository.dart';
 
 class NotificationUI {
-  /// 顯示今日通知彈窗
+  // 顯示今日通知彈窗
   static void showTodayNotifications(BuildContext context) {
     showModalBottomSheet(
       context: context,

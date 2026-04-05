@@ -69,16 +69,16 @@ class Ingredient {
 
   Ingredient copy() {
     var newIngredient = Ingredient(
-      id: this.id,
-      name: this.name,
-      grams: this.grams,
-      calories: this.calories,
-      carbs: this.carbs,
-      protein: this.protein,
-      fat: this.fat,
+      id: id,
+      name: name,
+      grams: grams,
+      calories: calories,
+      carbs: carbs,
+      protein: protein,
+      fat: fat,
     );
     // 複製目前的刪除狀態 (通常初始是 false)
-    newIngredient.isDeleted = this.isDeleted;
+    newIngredient.isDeleted = isDeleted;
     return newIngredient;
   }
 }
@@ -117,47 +117,6 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
   List<FoodItem> _foodList = [];
   bool _isLoading = true; 
 
-  Future<void> _initFCM() async {
-    final messaging = FirebaseMessaging.instance;
-
-    // 請求通知權限（iOS / Web 必須）
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-      debugPrint("未允許通知權限");
-      return;
-    }
-
-    debugPrint("允許通知權限");
-
-    /// 2️⃣ 取得 FCM Token（依平台）
-    String? token;
-
-    if (kIsWeb) {
-      // 🌐 Web 一定要 VAPID key
-      token = await messaging.getToken(
-        vapidKey:
-            "BAh5oN1nx32SwjHaHGT_P3O7q7JK8qZZat_cB3ndPHH7if9LVmVFvPn4loUMjXlqE3vuYfMLaQAqYKgUpQsvajE",
-      );
-    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-      // iOS 不需要 vapidKey
-      token = await messaging.getToken();
-    } else if (defaultTargetPlatform == TargetPlatform.android) {
-      // Android 不需要 vapidKey
-      token = await messaging.getToken();
-    }
-
-    if (token != null) {
-      debugPrint("FCM Token: $token");
-    } else {
-      debugPrint("取得 FCM Token 失敗");
-    }
-  }
-
   // 檢查使用者資料完整性
   Future<void> _checkUserDataStatus() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -183,7 +142,7 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
           }
           if (isComplete) {
             try {
-              String gender = data!['gender'].toString();
+              String gender = data['gender'].toString();
               int age = int.tryParse(data['age'].toString()) ?? 25;
               double height = double.tryParse(data['height'].toString()) ?? 160;
               double weight = double.tryParse(data['weight'].toString()) ?? 50;
@@ -246,7 +205,6 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    _initFCM();
     NotificationHandler.init();
 
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
@@ -1136,7 +1094,7 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16.0),
           ),
-          child: Container(
+          child: SizedBox(
             width: dialogWidth, // 使用計算後的寬度
             child: FoodEditDialogContent(
               item: item,
