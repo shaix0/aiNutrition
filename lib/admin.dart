@@ -254,12 +254,12 @@ class _AdminPageState extends State<AdminPage> {
       Uri.parse("$apiBaseUrl/notifications/send"),
       headers: {
         "Authorization": "Bearer $token",
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: {
+      body: jsonEncode({
         "title": title,
         "body": body,
-      },
+      }),
     );
 
     if (resp.statusCode == 200) {

@@ -78,6 +78,9 @@ class NotificationHandler {
     }
 
     debugPrint("FCM Token: $token");
+    
+    // 訂閱主題
+    // await FirebaseMessaging.instance.subscribeToTopic("all");
 
     // 註冊裝置（存 Firestore）
     await _saveToken(token);
