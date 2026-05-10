@@ -8,11 +8,13 @@ import 'app_theme.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'notifications/notification_handler.dart';
 import 'widget_handler.dart';
+import 'package:provider/provider.dart';
+import 'home/app_mode.dart';
 
 // 全局變數，用於儲存當前登入的使用者資訊
 User? currentUser;
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+// final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // 負責初始化 Firebase Auth，並確保使用固定的匿名 UID
 Future<void> _initializeAuth() async {
@@ -76,12 +78,18 @@ Future<void> main() async {
   // 註冊背景訊息 handler
   FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
   // 6. 桌面小工具初始化
-  WidgetsFlutterBinding.ensureInitialized();
   WidgetHandler.init();
   //await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
   //final userCredential = await FirebaseAuth.instance.signInAnonymously();
   //print('匿名使用者登入成功，UID: ${userCredential.user?.uid}');
-  runApp(const MyApp());
+  runApp(
+  MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => AppMode()),
+    ],
+    child: const MyApp(),
+  ),
+);
 }
 
 class MyApp extends StatelessWidget {
@@ -89,11 +97,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    WidgetHandler.checkInitialRoute(); // 檢查是否有初始路由需要跳轉
     return MaterialApp(
       title: 'aiNutrition',
       theme: AppTheme.theme,
-      initialRoute: '/',
+      initialRoute: '/mode_selection', // 預設進入模式選擇頁
       routes: appRoutes,
       navigatorKey: WidgetHandler.navigatorKey, // 設定全局導航鍵
       debugShowCheckedModeBanner: false, // 隱藏右上角的DEBUG標籤

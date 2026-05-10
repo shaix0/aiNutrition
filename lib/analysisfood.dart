@@ -1,6 +1,5 @@
 import 'dart:async'; // 用於延遲操作
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -90,14 +89,14 @@ class FoodAnalysisResult {
 }
 
 // 分析頁面
-class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+class AnalysisPage extends StatefulWidget {
+  const AnalysisPage({super.key});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<AnalysisPage> createState() => _AnalysisPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _AnalysisPageState extends State<AnalysisPage> {
   // 狀態變數
   User? _user;
   XFile? _selectedImage;
@@ -768,17 +767,6 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: null,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              FocusScope.of(context).unfocus();
-            }
-          },
-        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {

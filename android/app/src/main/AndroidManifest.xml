@@ -12,7 +12,7 @@
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="nutrition" >
+        android:label="nutrition-test" >
         <receiver
             android:name=".OpenCamera"
             android:exported="true" >

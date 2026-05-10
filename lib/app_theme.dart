@@ -20,6 +20,20 @@ class AppTheme {
       elevation: 0,
     ),
 
+    tabBarTheme: const TabBarThemeData(
+      labelColor: primaryDeep,
+      unselectedLabelColor: Color.fromARGB(179, 86, 86, 86),
+      indicatorSize: TabBarIndicatorSize.label,
+      indicator: UnderlineTabIndicator(
+        borderSide: BorderSide(color: primaryDeep, width: 4),
+      ),
+      labelStyle: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+      ),
+      splashFactory: NoSplash.splashFactory, // 去除點擊水波紋
+    ),
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryDeep,

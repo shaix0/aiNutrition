@@ -1,8 +1,11 @@
-// settings.dart
+// lib/settings.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'home/app_mode.dart';
+import 'home/nutrition_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -302,16 +305,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('設定'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              FocusScope.of(context).unfocus();
-            }
-          },
-        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -411,12 +404,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
 
               const SizedBox(height: 18),
-              const Text(
-                '個人健康資料',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-
+              _sectionTitle('個人健康資料'),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -505,7 +493,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
@@ -517,7 +505,39 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+              _sectionTitle('其他設定'),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        _sectionLabel('簡單模式'),
+                        InfoTooltip(
+                          message: '啟用簡單模式後，應用程式將顯示簡化的營養資訊和進度條。',
+                        ),
+                        const Spacer(),
+                        Switch(
+                          value: context.watch<AppMode>().isSimple,
+                          onChanged: (value) {
+                            context.read<AppMode>().toggle();
+                          },
+                          activeTrackColor: cs.primary,
+                          activeThumbColor: Colors.white,
+                        )
+                      ]
+                    )
+                  ],
+                ),
+              ),
+                        
+
+              const SizedBox(height: 18),
               _sectionTitle('應用資訊'),
               _infoRow('版本', '1.0.0'),
               _infoRow('條款', '隱私權政策與使用條款'),
