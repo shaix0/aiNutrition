@@ -269,17 +269,20 @@ class _HomeSimpleState extends State<HomeSimple> {
       automaticallyImplyLeading: false,
       actions: [
         // 1. 家庭切換器 (來自 familysetting0402)
-        FamilySwitcher(
-          currentName: _targetName,
-          onSelected: (uid, name) {
-            setState(() {
-              _targetUid = uid;
-              _targetName = name;
-                _isLoading = true; // 切換時顯示 loading
-            });
-            // 重新監聽資料流
-            _listenToFirebaseData();
-          },
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: FamilySwitcher(
+            currentName: _targetName,
+            onSelected: (uid, name) {
+              setState(() {
+                _targetUid = uid;
+                _targetName = name;
+                  _isLoading = true; // 切換時顯示 loading
+              });
+              // 重新監聽資料流
+              _listenToFirebaseData();
+            },
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(right: 8),

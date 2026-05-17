@@ -100,7 +100,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'aiNutrition',
       theme: AppTheme.theme,
-      initialRoute: '/mode_selection', // 預設進入模式選擇頁
+      initialRoute: '/', // 預設進入模式選擇頁
       routes: appRoutes,
       navigatorKey: WidgetHandler.navigatorKey, // 設定全局導航鍵
       debugShowCheckedModeBanner: false, // 隱藏右上角的DEBUG標籤
