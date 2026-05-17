@@ -453,6 +453,7 @@ class ConfirmDeleteDialog {
 /// - [foodList]     食物列表
 /// - [onTapItem]    點擊單筆時的行為（由呼叫端決定，例如開編輯 dialog）
 /// - [onDeleteItem] 點擊刪除時的行為（由呼叫端決定，通常呼叫 ConfirmDeleteDialog.show）
+/// - [isReadOnly]    是否為唯讀模式（預設 false，向下相容），true 時隱藏刪除按鈕
 class DailyFoodList extends StatelessWidget {
   const DailyFoodList({
     super.key,
@@ -460,12 +461,14 @@ class DailyFoodList extends StatelessWidget {
     required this.foodList,
     required this.onTapItem,
     required this.onDeleteItem,
+    this.isReadOnly = false, // 🟢 新增，預設 false 向下相容
   });
 
   final bool                    isLoading;
   final List<FoodItem>          foodList;
   final void Function(FoodItem) onTapItem;
   final void Function(FoodItem) onDeleteItem;
+  final bool                    isReadOnly; // 🟢 新增
 
   @override
   Widget build(BuildContext context) {
@@ -500,9 +503,10 @@ class DailyFoodList extends StatelessWidget {
       itemBuilder: (_, i) => Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: _FoodListTile(
-          item:     foodList[i],
-          onTap:    () => onTapItem(foodList[i]),
-          onDelete: () => onDeleteItem(foodList[i]),
+          item:       foodList[i],
+          onTap:      () => onTapItem(foodList[i]),
+          onDelete:   () => onDeleteItem(foodList[i]),
+          isReadOnly: isReadOnly, 
         ),
       ),
     );
@@ -514,11 +518,13 @@ class _FoodListTile extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.onDelete,
+    this.isReadOnly = false, 
   });
 
   final FoodItem     item;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final bool         isReadOnly;
 
   @override
   Widget build(BuildContext context) {

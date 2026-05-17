@@ -372,7 +372,10 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
   Widget _buildFab() {
     return Container(
       margin: const EdgeInsets.only(right: 20, bottom: 25),
-      child: FloatingActionButton.small(
+      // 只有在查看自己的資料時才顯示 FAB
+      child: _targetName != "我自己"
+        ? null
+        : FloatingActionButton.small(
         elevation: 4,
         backgroundColor: const Color.fromARGB(255, 157, 198, 194),
         foregroundColor: Colors.white,
