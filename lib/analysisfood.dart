@@ -1,5 +1,6 @@
 import 'dart:async'; // 用於延遲操作
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,9 +10,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 引入環境變數套件
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../services/nutrition_service.dart';
 
+// -----------------------------------------------------------------------------
 // 資料模型 (Models)
+// -----------------------------------------------------------------------------
+
 class Ingredient {
   String name;
   double weight; // 克
@@ -65,12 +70,14 @@ class FoodAnalysisResult {
   String aiSummary;
   DateTime analyzedTime;
   List<Ingredient> ingredients;
+  String status; // 🟢 標記 'completed' 或 'pure_record'
 
   FoodAnalysisResult({
     required this.dishName,
     required this.aiSummary,
     required this.ingredients,
     required this.analyzedTime,
+    this.status = 'completed',
   });
 
   double get totalWeight => ingredients
@@ -88,7 +95,10 @@ class FoodAnalysisResult {
       ingredients.where((i) => i.isSelected).fold(0, (sum, i) => sum + i.fat);
 }
 
-// 分析頁面
+// -----------------------------------------------------------------------------
+// Analysis Page (分析頁面主體)
+// -----------------------------------------------------------------------------
+
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
 
@@ -104,6 +114,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
   final TextEditingController _promptController = TextEditingController();
   bool _isAnalyzing = false;
   FoodAnalysisResult? _analysisResult;
+
+  // 🟢 核心變數：儲存使用者選擇的時間與模式
+  DateTime? _userSelectedTime;
+  String _currentMode = 'completed';
 
   late final GenerativeModel _model;
   bool _isApiKeyLoaded = false;
@@ -127,6 +141,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
     // 啟動時載入 CSV 資料庫
     _nutritionService.loadCsvData();
+
+    // 初始化預設時間為當前時間
+    _userSelectedTime = DateTime.now();
+
+    // 🟢 自動啟動模式選擇選單
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showModeSelection();
+    });
   }
 
   @override
@@ -141,6 +163,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     final auth = FirebaseAuth.instance;
     if (auth.currentUser == null) {
       try {
+        await auth.signInAnonymously();
       } catch (e) {
         print("Dashboard: 補救登入失敗: $e");
       }
@@ -155,7 +178,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     });
   }
 
-  // 初始化 Gemini Model
+  // 2. 初始化 Gemini Model
   void _initializeAI() {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
@@ -167,7 +190,119 @@ class _AnalysisPageState extends State<AnalysisPage> {
     setState(() => _isApiKeyLoaded = true);
   }
 
-  // 選擇圖片邏輯
+  // 🟢 彈出日期與時間選擇器
+  Future<void> _pickDateTime() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _userSelectedTime ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: '選擇紀錄日期',
+    );
+
+    if (pickedDate != null) {
+      if (!mounted) return;
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(
+          _userSelectedTime ?? DateTime.now(),
+        ),
+        helpText: '選擇紀錄時間',
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _userSelectedTime = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+          if (_analysisResult != null) {
+            _analysisResult!.analyzedTime = _userSelectedTime!;
+          }
+        });
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 🟢 核心分流選單
+  // ---------------------------------------------------------------------------
+  Future<void> _showModeSelection() async {
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            const Text(
+              "請選擇紀錄方式",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.teal,
+                child: Icon(Icons.auto_awesome, color: Colors.white),
+              ),
+              title: const Text("AI 飲食分析"),
+              subtitle: const Text("上傳照片，由 AI 即時計算營養成分"),
+              onTap: () => Navigator.pop(context, 1),
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.orangeAccent,
+                child: Icon(Icons.bolt, color: Colors.white),
+              ),
+              title: const Text("純照片紀錄 / 離線快拍"),
+              subtitle: const Text("只存照片，事後再手動分析"),
+              onTap: () => Navigator.pop(context, 2),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+
+    if (result == null) {
+      if (_imageBytes == null && Navigator.canPop(context))
+        Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      _currentMode = (result == 2) ? 'pure_record' : 'completed';
+    });
+
+    await _showImagePickerOptions();
+  }
+
+  void _preparePureRecord() {
+    setState(() {
+      _analysisResult = FoodAnalysisResult(
+        dishName: '待分析餐點',
+        aiSummary: '此為純紀錄模式，僅保存照片與時間。如需營養數據，請稍後於歷史紀錄中進行補分析。',
+        ingredients: [],
+        analyzedTime: _userSelectedTime ?? DateTime.now(),
+        status: 'pure_record',
+      );
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. 選擇圖片邏輯
+  // ---------------------------------------------------------------------------
   Future<void> _showImagePickerOptions() async {
     if (kIsWeb) {
       await _pickImageFromGallery();
@@ -187,7 +322,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
     final result = await showCupertinoModalPopup<int>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
-        title: const Text('選擇圖片方式'),
+        title: const Text('選擇圖片來源'),
         actions: <CupertinoActionSheetAction>[
           CupertinoActionSheetAction(
             child: const Text('拍照'),
@@ -203,9 +338,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
+          child: const Text('取消'),
           isDestructiveAction: true,
           onPressed: () => Navigator.pop(context, 0),
-          child: const Text('取消'),
         ),
       ),
     );
@@ -239,7 +374,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  '選擇圖片方式',
+                  '選擇圖片來源',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -283,7 +418,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
   }
 
-  // 圖片壓縮 (maxWidth: 600, quality: 50)
   Future<void> _takePhotoWithCamera() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -401,6 +535,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
         _imageBytes = bytes;
         _analysisResult = null;
       });
+      if (_currentMode == 'pure_record') {
+        _preparePureRecord();
+      }
       _showSnackBar('圖片選擇成功！', isSuccess: true);
     } catch (e) {
       _showErrorDialog("處理圖片時發生錯誤");
@@ -430,10 +567,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
       _promptController.clear();
       _analysisResult = null;
       _isAnalyzing = false;
+      _userSelectedTime = DateTime.now();
     });
+    _showModeSelection();
   }
 
-  // AI分析
+  // ---------------------------------------------------------------------------
+  // 5. 開始分析
+  // ---------------------------------------------------------------------------
   Future<void> _analyzeImage() async {
     if (_imageBytes == null) return;
     if (!_isApiKeyLoaded) {
@@ -448,47 +589,46 @@ class _AnalysisPageState extends State<AnalysisPage> {
     try {
       final userInput = _promptController.text.trim();
 
-      // Prompt 修改
       final prompt =
           """
       你是一個專業的營養師。請依據以下邏輯分析這張圖片與使用者的描述。
       
-      使用者描述: "$userInput"
+      使用者提示詞: "$userInput"
       
       請執行【圖文整合分析機制】：
       
       1. **辨識圖片**：首先列出圖片中「所有」看得到的食材 (例如：豬排、咖哩醬、紅蘿蔔、白飯)。
       2. **判斷情境** (依序判定)：
       
-         - **情境 A [修飾模式]**：圖片清晰且是食物。
-           -> 核心原則：**圖片是主角，文字是修飾。**
-           -> 行動：保留圖片中看到的所有食材。若使用者文字提到「半飯」、「少油」、「去皮」等，請**調整對應食材的重量或熱量**。
-           -> **【重要】強制拆解原則**：若圖片中食材是「分開擺放」的（例如便當、自助餐），即使使用者文字輸入「炒飯」、「燴飯」等混合料理名稱，也請**優先依據圖片視覺，將飯、肉、菜分開列出**，除非圖片本身真的是混合料理。
-           -> 範例：圖是「排骨便當（飯、菜分開）」，文字寫「排骨炒飯」。
+          - **情境 A [修飾模式]**：圖片清晰且是食物。
+            -> 核心原則：**圖片是主角，文字是修飾。**
+            -> 行動：保留圖片中看到的所有食材。若使用者文字提到「半飯」、「少油」、「去皮」等，請**調整對應食材的重量或熱量**。
+            -> **【重要】強制拆解原則**：若圖片中食材是「分開擺放」的（例如便當、自助餐），即使使用者文字輸入「炒飯」、「燴飯」等混合料理名稱，也請**優先依據圖片視覺，將飯、肉、菜分開列出**，除非圖片本身真的是混合料理。
+            -> 範例：圖是「排骨便當（飯、菜分開）」，文字寫「排骨炒飯」。
               * 正確行為：忽略「炒飯」文字定義，輸出「白飯」、「炸排骨」、「炒青菜」。
-           -> 輸出：is_food: true, dish_name: 辨識結果, summary: 總結。
-           
-         - **情境 B [補救情境]**：圖片模糊/全黑/無法辨識，但使用者有輸入描述。
-           -> 行動：完全信賴使用者描述，提供標準估算值。
-           -> 輸出：is_food: true, dish_name: "$userInput (標準估算)", summary: "因圖片模糊，已依據文字分析提供標準數據。"
-           
-         - **情境 C [衝突情境]**：圖片清晰顯示為「非食物」(如貓、椅子、馬桶)，但使用者有輸入食物描述。
-           -> 行動：**強制信賴使用者描述**，忽略圖片內容。
-           -> 輸出：is_food: true, dish_name: "$userInput (文字估算)", summary: "圖片看起來是[圖片內容]，但已依據您的描述提供$userInput數據。"
-           
-         - **情境 D [無效情境]**：圖片非食物，且使用者「沒有」輸入描述。
-           -> 行動：拒絕服務。
-           -> 輸出：is_food: false, error_msg: "無法辨識為食物，請補充文字說明。"
+            -> 輸出：is_food: true, dish_name: 辨識結果, summary: 總結。
+            
+          - **情境 B [補救情境]**：圖片模糊/全黑/無法辨識，但使用者有輸入描述。
+            -> 行動：完全信賴使用者描述，提供標準估算值。
+            -> 輸出：is_food: true, dish_name: "$userInput (標準估算)", summary: "因圖片模糊，已依據文字分析提供標準數據。"
+            
+          - **情境 C [衝突情境]**：圖片清晰顯示為「非食物」(如貓、椅子、馬桶)，但使用者有輸入食物描述。
+            -> 行動：**強制信賴使用者描述**，忽略圖片內容。
+            -> 輸出：is_food: true, dish_name: "$userInput (文字估算)", summary: "圖片看起來是[圖片內容]，但已依據您的描述提供$userInput數據。"
+            
+          - **情境 D [無效情境]**：圖片非食物，且使用者「沒有」輸入描述。
+            -> 行動：拒絕服務。
+            -> 輸出：is_food: false, error_msg: "無法辨識為食物，請補充文字說明。"
 
       【嚴格輸出規範】：
       1. **dish_name (餐點名稱)**：請**簡潔扼要** (建議 10 字內)。
-         - 錯誤：營養豐富的香煎雞腿排佐時蔬便當
-         - 正確：香煎雞腿便當
+          - 錯誤：營養豐富的香煎雞腿排佐時蔬便當
+          - 正確：香煎雞腿便當
       2. **summary (營養總結)**：請非常精簡，**絕對不要超過 35 個中文字**。直接講重點，不要廢話。
       3. **ingredients (食材名稱)**：
-         - name: 請**只寫最核心的食材名**，去除所有冗言贅詞。
-         - **search_terms**: [重要] 請提供 2~3 個適合在「台灣衛福部食品成分資料庫」搜尋的關鍵字。
-         - **calories**: 提供 AI 估算的總營養素數值。
+          - name: 請**只寫最核心的食材名**，去除所有冗言贅詞。
+          - **search_terms**: [重要] 請提供 2~3 個適合在「台灣衛福部食品成分資料庫」搜尋的關鍵字。
+          - **calories**: 提供 AI 估算的總營養素數值。
 
       【回傳格式 (JSON Only)】：
       {
@@ -567,11 +707,9 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
               List<FoodItem> matches = [];
               for (var term in searchTerms) {
-                // 這裡使用 await，無論是 SQLite 還是 CSV 都能通用
-                var currentMatches = _nutritionService.searchFood(term);
+                var currentMatches = await _nutritionService.searchFood(term);
 
                 if (currentMatches.isNotEmpty) {
-                  // 智慧排序邏輯
                   currentMatches.sort((a, b) {
                     bool aExact = a.name == term;
                     bool bExact = b.name == term;
@@ -579,7 +717,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
                     if (!aExact && bExact) return 1;
                     return a.name.length.compareTo(b.name.length);
                   });
-
                   matches = currentMatches;
                   break;
                 }
@@ -587,20 +724,12 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
               if (matches.isNotEmpty) {
                 final dbFood = matches.first;
-
-                // 計算數值
                 double ratio = weight / 100.0;
-
                 calories = dbFood.calories * ratio;
                 protein = dbFood.protein * ratio;
                 fat = dbFood.fat * ratio;
                 carbs = dbFood.carbs * ratio;
-
                 isVerified = true;
-
-                print("✅ [查表成功] $name -> ${dbFood.name}");
-              } else {
-                print("⚠️ [查無資料] $name 使用 AI 估算值");
               }
 
               ingredients.add(
@@ -622,7 +751,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
               dishName: data['dish_name'] ?? '未知食物',
               aiSummary: data['summary'] ?? '無法產生總結',
               ingredients: ingredients,
-              analyzedTime: DateTime.now(),
+              analyzedTime: _userSelectedTime ?? DateTime.now(),
+              status: 'completed',
             );
           });
 
@@ -644,15 +774,16 @@ class _AnalysisPageState extends State<AnalysisPage> {
         }
       }
     } catch (e) {
-      String errorMessage = e.toString().replaceAll("Exception: ", "");
-      if (errorMessage.contains("Socket")) errorMessage = "網路連線錯誤";
-      _showSnackBar(errorMessage);
+      // 🟢 離線救援：連線分析失敗自動改為「純紀錄」存檔
+      _showSnackBar("無法連接分析伺服器。已自動改為「純紀錄」模式幫您保存照片。");
+      _currentMode = 'pure_record';
+      _preparePureRecord();
     } finally {
       if (mounted) setState(() => _isAnalyzing = false);
     }
   }
 
-  // 儲存到 Firestore
+  // 6. 儲存到 Firestore
   Future<void> _saveToFirestore() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -661,13 +792,14 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
     if (_analysisResult == null || _imageBytes == null) return;
 
-    // 防呆機制：檢查是否有選取任何食材
-    final hasSelectedItems = _analysisResult!.ingredients.any(
-      (i) => i.isSelected,
-    );
-    if (!hasSelectedItems) {
-      _showSnackBar('請至少選取一項食材才能儲存');
-      return;
+    if (_currentMode != 'pure_record') {
+      final hasSelectedItems = _analysisResult!.ingredients.any(
+        (i) => i.isSelected,
+      );
+      if (!hasSelectedItems) {
+        _showSnackBar('請至少選取一項食材才能儲存');
+        return;
+      }
     }
 
     setState(() => _isAnalyzing = true);
@@ -689,12 +821,15 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
       double round2(double val) => double.parse(val.toStringAsFixed(2));
 
+      _analysisResult!.analyzedTime = _userSelectedTime ?? DateTime.now();
+
       final recordData = {
         'AI分析建議': _analysisResult!.aiSummary,
         '食物名': _analysisResult!.dishName,
         '圖片_base64': base64Image,
-        'created_at': FieldValue.serverTimestamp(),
-        'analyzed_date_string': _formatDateTime(DateTime.now()),
+        'status': _analysisResult!.status,
+        'created_at': Timestamp.fromDate(_analysisResult!.analyzedTime),
+        'analyzed_date_string': _formatDateTime(_analysisResult!.analyzedTime),
         'total_calories': round2(_analysisResult!.totalCalories),
         'total_protein': round2(_analysisResult!.totalProtein),
         'total_carbs': round2(_analysisResult!.totalCarbs),
@@ -720,7 +855,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
           barrierDismissible: false,
           builder: (_) => AlertDialog(
             title: const Text('儲存成功'),
-            content: const Text('分析結果已儲存。'),
+            content: const Text('紀錄已儲存。'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -734,7 +869,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
         );
       }
     } catch (e) {
-      print("儲存錯誤: $e");
       if (e.toString().contains("larger than")) {
         _showSnackBar('圖片過大，無法儲存');
       } else {
@@ -761,17 +895,34 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  // UI 
+  // =========================================================================
+  // UI 佈局核心邏輯
+  // =========================================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: null,
+        title: const Text(
+          "食物紀錄與分析",
+          style: TextStyle(fontWeight: FontWeight.normal),
+        ),
+        centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              FocusScope.of(context).unfocus();
+            }
+          },
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
-          final isMobile = screenWidth < 600;
+          final isMobile = screenWidth < 800; // 電腦版寬度基準
 
           return Center(
             child: Container(
@@ -787,7 +938,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
   Widget _buildMainContent(bool isMobile) {
     final bool hasImage = _imageBytes != null;
-    final bool hasResult = _analysisResult != null;
+    final bool showResultSection =
+        _analysisResult != null && _currentMode != 'pure_record';
 
     if (!hasImage) {
       return Center(
@@ -796,7 +948,8 @@ class _AnalysisPageState extends State<AnalysisPage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600, maxHeight: 400),
             child: InkWell(
-              onTap: _showImagePickerOptions,
+              // 🟢 修改點 2：使用者如果滑掉選單，點背景可以重新打開選單
+              onTap: _showModeSelection,
               child: _buildImageSection(),
             ),
           ),
@@ -804,118 +957,178 @@ class _AnalysisPageState extends State<AnalysisPage> {
       );
     }
 
-    if (hasImage && !hasResult) {
-      return Column(
-        children: [
-          Expanded(
-            flex: 6,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    if (!showResultSection) {
+      // 🟢 佈局 A：尚未分析或為純紀錄模式 (左右平分 / 上下平分完美不留白)
+      if (isMobile) {
+        return Column(
+          children: [
+            Expanded(
+              flex: 5,
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                color: const Color(0xFFF0F4F5),
+                child: _buildImageSection(),
+              ),
+            ),
+            Expanded(
+              flex: 5,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F9F8),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: _buildImageSection(),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      if (_currentMode == 'pure_record')
+                        _buildPureRecordStatus(),
+                      if (_currentMode == 'pure_record')
+                        const SizedBox(height: 16),
+                      _buildControlBar(true),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F9F8),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ],
+        );
+      } else {
+        return Padding(
+          padding: const EdgeInsets.all(32),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 700),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _buildImageSection(),
+                  ),
+                ),
               ),
-              child: SingleChildScrollView(
+              const SizedBox(width: 40),
+              Expanded(
+                flex: 5,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      if (_currentMode == 'pure_record')
+                        _buildPureRecordStatus(),
+                      if (_currentMode == 'pure_record')
+                        const SizedBox(height: 16),
+                      _buildControlBar(false),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      // 🟢 佈局 B：已完成分析，提供長列表滾動查看 (控制面板在最底下)
+      if (isMobile) {
+        return SingleChildScrollView(
+          controller: _scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 300,
+                width: double.infinity,
+                color: const Color(0xFFF0F4F5),
+                child: _buildImageSection(),
+              ),
+              Container(
+                key: _resultKey,
+                transform: Matrix4.translationValues(0.0, -20.0, 0.0),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F9F8),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-                    _buildControlBar(isMobile),
+                    _buildResultSection(true),
+                    const SizedBox(height: 20),
+                    _buildControlBar(true),
                   ],
                 ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        return Padding(
+          padding: const EdgeInsets.all(32),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 700),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _buildImageSection(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 40),
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        key: _resultKey,
+                        child: _buildResultSection(false),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildControlBar(false),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildPureRecordStatus() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.bolt, color: Colors.orange),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '目前為純紀錄模式，僅保存照片與時間。如需營養數據，請稍後於歷史紀錄中點擊「分析」。',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
         ],
-      );
-    }
-
-    if (isMobile) {
-      return SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 250,
-              width: double.infinity,
-              color: const Color(0xFFF0F4F5),
-              child: _buildImageSection(),
-            ),
-            Container(
-              key: _resultKey,
-              transform: Matrix4.translationValues(0.0, -20.0, 0.0),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F9F8),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildResultSection(true),
-                  const SizedBox(height: 20),
-                  _buildControlBar(true),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 4,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: _buildImageSection(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildControlBar(false),
-                ],
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 6,
-              child: SingleChildScrollView(child: _buildResultSection(false)),
-            ),
-          ],
-        ),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildImageSection() {
@@ -931,36 +1144,36 @@ class _AnalysisPageState extends State<AnalysisPage> {
       );
     }
 
+    // 🟢 修改點 1：將囉嗦的字改為簡潔乾淨的按鈕預留框
     return DottedBorder(
-      color: Colors.grey[400]!,
+      color: Colors.teal.shade200,
       strokeWidth: 2,
       dashPattern: const [8, 4],
       borderType: BorderType.RRect,
-      radius: const Radius.circular(12),
+      radius: const Radius.circular(16),
       child: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFFF0F4F5),
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.teal.shade50,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined, size: 64, color: Colors.grey[400]),
+            Icon(
+              Icons.add_circle_outline,
+              size: 60,
+              color: Colors.teal.shade400,
+            ),
             const SizedBox(height: 16),
             const Text(
-              '點擊上傳圖片或拍照',
+              '點擊開始紀錄餐點',
               style: TextStyle(
-                color: Colors.grey,
+                color: Colors.teal,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '支援 JPG, PNG 格式',
-              style: TextStyle(color: Colors.grey[500], fontSize: 14),
             ),
           ],
         ),
@@ -971,12 +1184,56 @@ class _AnalysisPageState extends State<AnalysisPage> {
   Widget _buildControlBar(bool isMobile) {
     return Column(
       children: [
-        if (_imageBytes != null && _analysisResult == null) ...[
+        InkWell(
+          onTap: _isAnalyzing ? null : _pickDateTime,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '紀錄日期與時間 (點擊修改)',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDateTime(_userSelectedTime ?? DateTime.now()),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Icon(Icons.edit, color: Colors.grey[400], size: 16),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        if (_currentMode != 'pure_record' && _analysisResult == null) ...[
           TextField(
             controller: _promptController,
-            enabled: !_isAnalyzing, // 分析中鎖定輸入框
+            enabled: !_isAnalyzing,
             decoration: InputDecoration(
-              hintText: '補充細節能讓估算更精準 (例：去皮、半飯、無糖...)',
+              hintText: '輸入提示詞 (例：去皮、半飯、無糖...)',
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
               prefixIcon: Icon(Icons.edit_note, color: Colors.teal[300]),
               border: OutlineInputBorder(
@@ -996,25 +1253,25 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
         Row(
           children: [
-            if (_imageBytes != null)
-              Expanded(
-                child: TextButton(
-                  onPressed: _isAnalyzing ? null : _resetAll, // 分析中禁用重選
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    foregroundColor: Colors.grey,
-                  ),
-                  child: const Text('重選 / 取消'),
+            Expanded(
+              child: TextButton(
+                onPressed: _isAnalyzing ? null : _resetAll,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  foregroundColor: Colors.grey,
                 ),
+                child: const Text('重選 / 取消'),
               ),
-            if (_imageBytes != null) const SizedBox(width: 12),
+            ),
+            const SizedBox(width: 12),
 
             Expanded(
               flex: 2,
               child: ElevatedButton(
                 onPressed:
                     (_imageBytes != null && !_isAnalyzing && _isApiKeyLoaded)
-                    ? (_analysisResult == null
+                    ? ((_analysisResult == null &&
+                              _currentMode != 'pure_record')
                           ? _analyzeImage
                           : _saveToFirestore)
                     : null,
@@ -1034,12 +1291,22 @@ class _AnalysisPageState extends State<AnalysisPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            _analysisResult == null
+                            (_analysisResult == null &&
+                                    _currentMode != 'pure_record')
                                 ? Icons.analytics_outlined
                                 : Icons.save_alt,
+                            size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(_analysisResult == null ? '開始分析' : '確定儲存'),
+                          Text(
+                            (_analysisResult == null &&
+                                    _currentMode != 'pure_record')
+                                ? '開始分析'
+                                : '確定儲存紀錄',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
                         ],
                       ),
               ),
@@ -1195,7 +1462,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  // 以下 UI 元件保持不變
   Widget _buildTitleSection(bool isMobile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1216,7 +1482,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                _formatDateTime(_analysisResult!.analyzedTime),
+                "紀錄於: ${_formatDateTime(_analysisResult!.analyzedTime)}",
                 style: TextStyle(
                   fontSize: isMobile ? 12 : 14,
                   color: Colors.grey[600],
@@ -1287,20 +1553,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  Widget _buildLabel(IconData icon, Color color, String text, bool isMobile) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: isMobile ? 12 : 14, color: color),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(fontSize: isMobile ? 10 : 12, color: color),
-        ),
-      ],
-    );
-  }
-
   Widget _buildAISummary(bool isMobile) {
     return Container(
       padding: isMobile ? const EdgeInsets.all(10) : const EdgeInsets.all(12),
@@ -1319,6 +1571,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
               style: TextStyle(
                 color: Colors.black87,
                 fontSize: isMobile ? 12 : 13,
+                height: 1.4,
               ),
             ),
           ),

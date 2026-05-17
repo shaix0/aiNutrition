@@ -7,14 +7,13 @@ import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 
 import '../models.dart';
-import '../widget_handler.dart';
-import 'app_mode.dart';
+import '../report.dart';
 import '../notifications/notification_handler.dart';
 import '../notifications/notification_ui.dart';
 import '../notifications/notification_bell.dart';
+import '../widgets/family_switcher.dart';
 
 import 'nutrition_helpers.dart';
 import 'nutrition_widgets.dart';
@@ -30,6 +29,8 @@ class NutritionHomePage extends StatefulWidget {
 class _NutritionHomePageState extends State<NutritionHomePage> {
   // ── 狀態 ─────────────────────────────────────────────────────────────────────
 
+  String?                _targetUid; // 目標 UID（預設為自己），現在看誰的資料
+  String                 _targetName = "我自己";
   late DateTime          _selectedDate;
   StreamSubscription?    _foodSubscription;
 
@@ -43,6 +44,10 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
   @override
   void initState() {
     super.initState();
+
+    // 🟢 初始化目標 UID 為自己
+    _targetUid = FirebaseAuth.instance.currentUser?.uid;
+    _targetName = "我自己";
     _selectedDate = DateTime.now();
     NotificationHandler.init();
 
@@ -247,6 +252,20 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
     if (mounted) await _checkUserDataStatus();
   }
 
+  Future<void> _openReportPage() async {
+    final reportTargetUid =
+        _targetUid ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportPage(
+          userId: reportTargetUid,
+          initialReferenceDate: _selectedDate, // 傳入目前選擇的日期
+        ),
+      ),
+    );
+  }
+
   // ── 計算 ──────────────────────────────────────────────────────────────────────
 
   DailyTotals _calcCurrentTotals() {
@@ -309,13 +328,19 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
     return AppBar(
       automaticallyImplyLeading: false,
       actions: [
-        // Padding(
-        //   padding: const EdgeInsets.only(right: 8),
-        //   child: IconButton(
-        //     icon: const Icon(Icons.switch_left_outlined),
-        //     onPressed: () => context.read<AppMode>().toggle(),
-        //   ),
-        // ),
+        // 1. 家庭切換器 (來自 familysetting0402)
+        FamilySwitcher(
+          currentName: _targetName,
+          onSelected: (uid, name) {
+            setState(() {
+              _targetUid = uid;
+              _targetName = name;
+                _isLoading = true; // 切換時顯示 loading
+            });
+            // 重新監聽資料流
+            _listenToFirebaseData();
+          },
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: NotificationBell(
@@ -326,7 +351,8 @@ class _NutritionHomePageState extends State<NutritionHomePage> {
           padding: const EdgeInsets.only(right: 8),
           child: IconButton(
             icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.pushNamed(context, '/reports'),
+            // onPressed: () => Navigator.pushNamed(context, '/reports'),
+            onPressed: () => _openReportPage(),
           ),
         ),
         Padding(

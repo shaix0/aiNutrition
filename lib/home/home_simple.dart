@@ -13,6 +13,8 @@ import '../notifications/notification_bell.dart';
 import 'nutrition_helpers.dart';
 import 'nutrition_widgets.dart';
 import 'food_edit_dialog.dart';
+import '../widgets/family_switcher.dart';
+import '../report.dart';
 
 // ── 簡單模式餐別時間區間 ────────────────────────────────────────────────────────
 //   早餐:  03:00 ~ 10:59
@@ -53,6 +55,8 @@ class HomeSimple extends StatefulWidget {
 }
 
 class _HomeSimpleState extends State<HomeSimple> {
+  String?             _targetUid; // 目標 UID（預設為自己），現在看誰的資料
+  String              _targetName = "我自己";
   DateTime            _selectedDate = DateTime.now();
   StreamSubscription? _foodSubscription;
   List<FoodItem>      _foodList  = [];
@@ -63,7 +67,11 @@ class _HomeSimpleState extends State<HomeSimple> {
   @override
   void initState() {
     super.initState();
+    _targetUid = FirebaseAuth.instance.currentUser?.uid;
+    _targetName = "我自己";
+    _selectedDate = DateTime.now();
     NotificationHandler.init();
+
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user == null) _onSignOut(); else _listenToFirebaseData();
     });
@@ -176,6 +184,20 @@ class _HomeSimpleState extends State<HomeSimple> {
 
   // ── 導航 ──────────────────────────────────────────────────────────────────────
 
+  Future<void> _openReportPage() async {
+    final reportTargetUid =
+        _targetUid ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReportPage(
+          userId: reportTargetUid,
+          initialReferenceDate: _selectedDate, // 傳入目前選擇的日期
+        ),
+      ),
+    );
+  }
+
   Widget _buildDateRow() {
     final d = _selectedDate;
     return Row(
@@ -246,13 +268,19 @@ class _HomeSimpleState extends State<HomeSimple> {
     return AppBar(
       automaticallyImplyLeading: false,
       actions: [
-        // Padding(
-        //   padding: const EdgeInsets.only(right: 8),
-        //   child: IconButton(
-        //     icon: const Icon(Icons.switch_left_outlined),
-        //     onPressed: () => context.read<AppMode>().toggle(),
-        //   ),
-        // ),
+        // 1. 家庭切換器 (來自 familysetting0402)
+        FamilySwitcher(
+          currentName: _targetName,
+          onSelected: (uid, name) {
+            setState(() {
+              _targetUid = uid;
+              _targetName = name;
+                _isLoading = true; // 切換時顯示 loading
+            });
+            // 重新監聽資料流
+            _listenToFirebaseData();
+          },
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: NotificationBell(
@@ -263,7 +291,8 @@ class _HomeSimpleState extends State<HomeSimple> {
           padding: const EdgeInsets.only(right: 8),
           child: IconButton(
             icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.pushNamed(context, '/reports'),
+            // onPressed: () => Navigator.pushNamed(context, '/reports'),
+            onPressed: () => _openReportPage(),
           ),
         ),
         Padding(
