@@ -903,10 +903,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "食物紀錄與分析",
-          style: TextStyle(fontWeight: FontWeight.normal),
-        ),
+        title: const Text("食物紀錄與分析"),
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
