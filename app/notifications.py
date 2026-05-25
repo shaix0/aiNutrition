@@ -34,8 +34,10 @@ async def send_notification_to_target(target_uid: str = Form(...), title: str = 
     tokens = list(set(tokens))  # 去除重複 token
     for token in tokens:
         message = messaging.Message(
-            title=title,
-            body=body,
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
             # data={
             #     "title": title,
             #     "body": body,
