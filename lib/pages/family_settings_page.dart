@@ -98,6 +98,7 @@ class _FamilySettingsPageState extends State<FamilySettingsPage> {
       }
     } catch (e) {
       if (!mounted) return;
+      debugPrint("加入家庭失敗: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("加入失敗: $e")));

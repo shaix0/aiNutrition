@@ -20,8 +20,8 @@ User? currentUser;
 Future<void> _initializeAuth() async {
   try {
     final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: 'user1@test.com',
-      password: 'testuser1'
+      email: 'ainutritiontestuser@gmail.com',
+      password: 'Aa1111'
     );
   } on FirebaseAuthException catch (e) {
     if (e.code == 'user-not-found') {

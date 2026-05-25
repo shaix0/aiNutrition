@@ -12,11 +12,13 @@
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="nutrition-test" >
+        android:label="nutrition-test"
+        android:taskAffinity="" >
         <receiver
             android:name=".OpenCamera"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:label="@string/open_camera_widget" >
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

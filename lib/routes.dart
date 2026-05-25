@@ -15,6 +15,7 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/auth': (context) => const AuthPage(), // 登入/註冊頁
   '/settings': (context) => const SettingsPage(), // 設定頁
   '/admin': (context) => const AdminPage(), // 管理頁
-  '/analysis': (context) => const AnalysisPage(), // 分析頁
+  // '/analysis': (context) => const AnalysisPage(), // 分析頁
+  '/analysis': (context) => const DashboardPage3(),
   '/family_settings': (context) => const FamilySettingsPage(),
 };

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 import '../models.dart';
 import 'app_mode.dart';
@@ -59,6 +60,11 @@ class _HomeSimpleState extends State<HomeSimple> {
   StreamSubscription? _foodSubscription;
   List<FoodItem>      _foodList  = [];
   bool                _isLoading = true;
+
+  static const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8000',
+  );
 
   // ── 生命週期 ─────────────────────────────────────────────────────────────────
 
@@ -272,6 +278,105 @@ class _HomeSimpleState extends State<HomeSimple> {
     }
   }
 
+  void _showSendNotificationDialog() {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          title: const Text("發送通知"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: "標題",
+                  prefixIcon: Icon(Icons.title),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bodyController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: "內容",
+                  prefixIcon: Icon(Icons.message),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text("取消"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+              ),
+              child: const Text("發送"),
+              onPressed: () async {
+                final title = titleController.text.trim();
+                final body = bodyController.text.trim();
+
+                if (title.isEmpty || body.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("標題與內容不可為空")),
+                  );
+                  return;
+                }
+
+                Navigator.pop(context);
+
+                await _sendNotificationToUser(title: title, body: body, targetUid: _targetUid ?? '');
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Future<void> _sendNotificationToUser({
+    required String title,
+    required String body,
+    required String targetUid,
+  }) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    if (token == null) throw Exception("未登入");
+    // try {
+    //   final token = await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    //   print("token: $token");
+    // } catch (e, stack) {
+    //   print("錯誤類型: ${e.runtimeType}");
+    //   print("錯誤內容: $e");
+    //   print("Stack: $stack");
+    // }
+
+    final request = http.MultipartRequest(
+      "POST",
+      Uri.parse("$apiBaseUrl/notifications/sendtotarget"),
+    );
+
+    request.headers["Authorization"] = "Bearer $token";
+    request.fields["target_uid"] = targetUid;
+    request.fields["title"] = title;
+    request.fields["body"] = body;
+
+    final streamedResp = await request.send();
+    final resp = await http.Response.fromStream(streamedResp);
+
+    if (resp.statusCode != 200) {
+      throw Exception("發送失敗：${resp.body}");
+    }
+  }
+
   // ── 建構 ─────────────────────────────────────────────────────────────────────
 
   @override
@@ -310,7 +415,7 @@ class _HomeSimpleState extends State<HomeSimple> {
           ),
         ),
         // 🟢 看他人時隱藏 FAB
-        floatingActionButton: isViewingOthers ? null : _buildFab(),
+        floatingActionButton: isViewingOthers ? _buildNotificationFab() : _buildFab(),
       ),
     );
   }
@@ -412,6 +517,19 @@ class _HomeSimpleState extends State<HomeSimple> {
             _listenToFirebaseData();
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildNotificationFab() {
+    return Container(
+      margin: const EdgeInsets.only(right: 20, bottom: 25),
+      child: FloatingActionButton.small(
+        elevation: 4,
+        backgroundColor: const Color.fromARGB(255, 157, 198, 194),
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.send, size: 20),
+        onPressed: () => _showSendNotificationDialog(),
       ),
     );
   }

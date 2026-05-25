@@ -2,9 +2,12 @@
 // 食物詳情 / 編輯對話框，職責：顯示與儲存單筆分析紀錄
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models.dart';
 import '../widget_handler.dart';
+import '../analysisfood.dart' as ana2;
 import 'nutrition_widgets.dart';
 
 // ── 進入點（靜態方法，保持呼叫端整潔）──────────────────────────────────────────
@@ -67,6 +70,8 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
   final List<String> _ingredientsToDelete = [];
 
   bool _isEditingName = false;
+  bool _isOnline      = true;   // 網路連線狀態
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   static const _mealOptions = ['早餐', '午餐', '晚餐', '點心'];
   String? _selectedMealType;
@@ -77,6 +82,16 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
   void initState() {
     super.initState();
     WidgetHandler.checkInitialRoute();
+    _checkInitialConnection();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (List<ConnectivityResult> results) {
+        if (mounted) {
+          setState(() {
+            _isOnline = !results.contains(ConnectivityResult.none);
+          });
+        }
+      },
+    );
 
     _nameController    = TextEditingController(text: widget.item.name);
     _gramController    = TextEditingController();
@@ -104,7 +119,17 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
     _carbController.dispose();
     _fatController.dispose();
     _remarksController.dispose();
+    _connectivitySubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkInitialConnection() async {
+    final result = await Connectivity().checkConnectivity();
+    if (mounted) {
+      setState(() {
+        _isOnline = result != ConnectivityResult.none;
+      });
+    }
   }
 
   // ── 業務邏輯 ────────────────────────────────────────────────────────────────
@@ -172,6 +197,10 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
 
   @override
   Widget build(BuildContext context) {
+    // 熱量為 0 代表離線存入、尚未分析的紀錄
+    final bool isOfflineData =
+        widget.item.calories == '0 大卡' || widget.item.calories == '0';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -180,9 +209,16 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
         children: [
           _buildHeader(),
           const SizedBox(height: 24),
-          _buildTotalFields(),
-          const SizedBox(height: 24),
-          _buildIngredientSection(),
+
+          // ── 離線 / 已分析 兩種狀態 ───────────────────────────────────────────
+          if (!isOfflineData) ...[
+            _buildTotalFields(),
+            const SizedBox(height: 24),
+            _buildIngredientSection(),
+          ] else ...[
+            _buildOfflineAnalysisButton(),
+          ],
+
           _buildAiSuggestionSection(),
           const SizedBox(height: 24),
           _buildRemarksSection(),
@@ -425,6 +461,63 @@ class _FoodEditDialogContentState extends State<FoodEditDialogContent> {
                 OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
+      ],
+    );
+  }
+
+  /// 離線紀錄的重新分析按鈕
+  Widget _buildOfflineAnalysisButton() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _isOnline
+                ? () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ana2.DashboardPage3(
+                          existingImageBase64: widget.item.imagePath,
+                          documentId:         widget.item.id,
+                          recordTime:         widget.item.createdAt,
+                        ),
+                      ),
+                    );
+                    if (result == true && mounted) {
+                      Navigator.of(context).pop(true);
+                    }
+                  }
+                : null,
+            icon: const Icon(Icons.auto_awesome),
+            label: Text(
+              _isOnline ? '進行 AI 分析' : '需網路連線以進行分析',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:         const Color(0xFF9DC6C2),
+              foregroundColor:         Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              disabledForegroundColor: Colors.grey[600],
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            _isOnline
+                ? '※ 此為離線紀錄，連上網路後點擊上方按鈕產出分析報告'
+                : '⚠️ 目前無網路連線，分析功能已停用',
+            style: TextStyle(
+              color: _isOnline ? Colors.grey : Colors.red[300],
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }

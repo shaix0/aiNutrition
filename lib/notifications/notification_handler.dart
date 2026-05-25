@@ -98,18 +98,21 @@ class NotificationHandler {
       return;
     }
 
+    // 用平台當 doc ID，同裝置只會更新同一筆
+    final platform = kIsWeb ? "web" : defaultTargetPlatform.name;
+
     await FirebaseFirestore.instance
         .collection("users")
         .doc(user.uid)
         .collection("tokens")
-        .doc(token)
+        .doc(platform)   // 改這裡
         .set({
       "token": token,
-      "platform": kIsWeb ? "web" : defaultTargetPlatform.name,
+      "platform": platform,
       "updatedAt": FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    debugPrint("token 已儲存");
+    debugPrint("token 已更新");
   }
 
   // CM 監聽
