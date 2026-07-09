@@ -52,5 +52,6 @@
     cal：80.1%  
     fat：71.7%  
     carb：68.1%  
-    protein：97.5%  
+    protein：97.5%
+  - 加入 nutrion5k depth_raw.png 作為訓練資料，增加訓練模型對空間辨識能力
 - **資料庫**：Firestore
